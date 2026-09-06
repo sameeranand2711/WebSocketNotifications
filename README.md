@@ -1,0 +1,300 @@
+# WebSocket Notifications
+
+WebSocket Notifications is a provider-neutral .NET 8 library for routing JSON notifications from an application-owned message source to authenticated ASP.NET Core WebSocket clients. V1 uses one server instance with in-memory connection and subscription state.
+
+## V1 capabilities
+
+- Authenticated, configurable ASP.NET Core WebSocket endpoint
+- Application-defined user resolution and subscription authorization
+- Direct-user delivery to every active connection for that user
+- Group, feed, and event-type subscriptions
+- Programmatic subscription management through `WebSocketNotificationHub`
+- Provider-neutral `INotificationMessageSource` boundary
+- Bounded per-connection buffers with disconnect, drop-oldest, and drop-current policies
+- One send loop and one receive loop per connection
+- Application-level heartbeat, optional WebSocket compression, and message-size limits
+- JSON application payloads and application-specific inbound messages
+- UTC notification expiry and per-connection ordering
+- KafkaHighThroughput host and multi-endpoint producer Web API samples
+- Reconnecting Next.js client with automatic resubscription
+
+V1 intentionally does not provide distributed connection state, replay, durable offline delivery, built-in acknowledgements, WebSocket retries, exactly-once delivery, binary messages, tenant scopes, subscription TTLs, or multi-region routing. See [V1 limitations](docs/limitations.md).
+
+## Architecture
+
+```text
+Application message source (Kafka sample, RabbitMQ adapter, etc.)
+                         |
+                         v
+                 NotificationEnvelope
+                         |
+                         v
+             in-memory recipient routing
+                         |
+                         v
+           bounded per-connection buffer
+                         |
+                         v
+            one WebSocket send loop/client
+```
+
+The core package contains no Kafka, RabbitMQ, Redis, or other broker dependency. Provider-specific deserialization, acknowledgement, retry, and commit behavior remains in the consuming application. See [architecture](docs/architecture.md) and [message sources](docs/message-source.md).
+
+## Requirements
+
+- .NET 8 SDK or a newer SDK capable of targeting .NET 8
+- Node.js 20.9 or newer for the Next.js sample
+- Docker Desktop for the Kafka sample and live E2E test
+
+The repository pins SDK `10.0.101` for repeatable local builds. The library itself targets `net8.0`.
+
+## Installation
+
+After packing locally:
+
+```powershell
+dotnet pack src/WebSocketNotifications/WebSocketNotifications.csproj -c Release -o artifacts/packages
+dotnet add <your-project> package WebSocketNotifications --version 1.0.0-preview.1 --source artifacts/packages
+```
+
+During repository development, use a project reference:
+
+```xml
+<ProjectReference Include="../../src/WebSocketNotifications/WebSocketNotifications.csproj" />
+```
+
+## ASP.NET Core setup
+
+Register the core services, application boundaries, and configured endpoint:
+
+```csharp
+using WebSocketNotifications.Abstractions;
+using WebSocketNotifications.Configuration;
+using WebSocketNotifications.Hosting;
+
+builder.Services.AddAuthentication(/* application scheme */);
+builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IWebSocketUserResolver, ApplicationUserResolver>();
+builder.Services.AddSingleton<ISubscriptionAuthorizer, ApplicationSubscriptionAuthorizer>();
+builder.Services.AddWebSocketNotifications(
+    builder.Configuration.GetSection(WebSocketNotificationOptions.SectionName));
+
+var app = builder.Build();
+app.UseWebSockets();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapWebSocketNotifications();
+```
+
+Programmatic configuration is also supported:
+
+```csharp
+builder.Services.AddWebSocketNotifications(options =>
+{
+    options.EndpointPath = "/ws/notifications";
+    options.OutgoingBufferCapacity = 256;
+    options.SlowClientPolicy = SlowClientPolicy.Disconnect;
+});
+```
+
+The library uses standard .NET options and does not require `appsettings.json`. Any `IConfiguration` provider can supply settings.
+
+## Authentication and identity
+
+`MapWebSocketNotifications()` applies `RequireAuthorization()`. The application configures its own authentication scheme; the library contains no JWT- or cookie-specific validation.
+
+After authentication, `IWebSocketUserResolver` derives the direct-routing user ID from the request. Clients cannot subscribe to arbitrary user IDs: the client protocol only permits group, feed, and event-type subscriptions. The sample's query-string identity is deliberately local-demo-only and must not be copied into production authentication.
+
+`ISubscriptionAuthorizer` is invoked before every client subscribe request. The default implementation denies all subscriptions, so an application must opt in to the subscriptions it accepts.
+
+## Notification contract
+
+The application or message-source adapter constructs the neutral contract:
+
+```csharp
+using System.Text.Json;
+using WebSocketNotifications.Contracts;
+
+using var payload = JsonDocument.Parse("""{"score":7}""");
+var notification = new NotificationEnvelope(
+    messageId: "score-42",
+    payload: payload.RootElement,
+    createdAt: DateTimeOffset.UtcNow,
+    expiresAt: DateTimeOffset.UtcNow.AddMinutes(1),
+    userIds: ["user-123"],
+    groups: ["operators"],
+    feeds: ["match-42"],
+    eventTypes: ["score.changed"]);
+```
+
+At least one routing target is required. Timestamps must use UTC offset zero. A connection matching several routes receives one copy of the notification.
+
+## Message-source integration
+
+An application may register zero or one source:
+
+```csharp
+using WebSocketNotifications.Abstractions;
+using WebSocketNotifications.Contracts;
+
+public sealed class ApplicationNotificationSource : INotificationMessageSource
+{
+    public async Task RunAsync(
+        Func<NotificationEnvelope, CancellationToken, Task> handler,
+        CancellationToken cancellationToken)
+    {
+        await foreach (var notification in ReadNotifications(cancellationToken))
+        {
+            await handler(notification, cancellationToken);
+        }
+    }
+}
+
+builder.Services.AddSingleton<INotificationMessageSource, ApplicationNotificationSource>();
+```
+
+The callback completion means the notification has been validated, routed, and accepted by the applicable bounded connection buffers. It is not a client acknowledgement. An individual WebSocket delivery is successful only after that connection's send operation completes. See [delivery semantics](docs/delivery-semantics.md).
+
+Applications can also inject `WebSocketNotificationHub` and call `PublishAsync` directly.
+
+## Client protocol
+
+Subscribe and unsubscribe requests use group, feed, or event type values:
+
+```json
+{"type":"subscribe","requestId":"request-1","kind":"group","value":"operators"}
+```
+
+```json
+{"type":"unsubscribe","requestId":"request-2","kind":"group","value":"operators"}
+```
+
+Notifications use this server frame:
+
+```json
+{
+  "type": "notification",
+  "messageId": "score-42",
+  "payload": { "score": 7 },
+  "createdAt": "2026-09-06T09:30:00Z",
+  "expiresAt": "2026-09-06T09:31:00Z"
+}
+```
+
+See [protocol reference](docs/protocol.md) for confirmations, errors, heartbeat messages, close behavior, and application-specific inbound messages.
+
+## Configuration
+
+```json
+{
+  "WebSocketNotifications": {
+    "EndpointPath": "/ws/notifications",
+    "HeartbeatEnabled": true,
+    "HeartbeatInterval": "00:00:30",
+    "HeartbeatTimeout": "00:00:10",
+    "CompressionEnabled": false,
+    "MaxIncomingMessageSize": 65536,
+    "MaxOutgoingMessageSize": 262144,
+    "OutgoingBufferCapacity": 128,
+    "SlowClientPolicy": "Disconnect"
+  }
+}
+```
+
+Invalid settings are rejected when the WebSocket subsystem is resolved or mapped; values are never silently clamped. See [configuration reference](docs/configuration.md).
+
+## Slow clients and heartbeat
+
+Every connection owns a bounded outgoing buffer. On overflow:
+
+- `Disconnect` removes and stops the slow connection; this is the default.
+- `DropOldest` keeps the newest message by discarding the oldest queued message.
+- `DropCurrent` discards the message currently being routed.
+
+Routing uses non-blocking buffer writes, so one full client queue cannot block other clients.
+
+Heartbeat is enabled by default. The server sends `ping` frames containing a nonce and expects a matching `pong` before the configured timeout. When disabled, dead connections are detected only by normal read, write, or close failures.
+
+## Delivery and ordering
+
+V1 delivery success for a connection means its WebSocket send operation completed. It does not prove browser receipt, application processing, or acknowledgement. There is no WebSocket retry or replay, and upstream at-least-once systems may produce duplicates.
+
+The source controls its own ordering domain. The library routes notifications synchronously into connection buffers, and each connection has one FIFO send loop. The Kafka producer sample selects an application-owned key such as `user:user-123`; the core never creates Kafka keys. There is no order across unrelated partitions or keys. See [delivery semantics](docs/delivery-semantics.md) and [ordering](docs/ordering.md).
+
+## Run the samples
+
+Start Kafka and create the topic:
+
+```powershell
+docker compose up -d --wait
+docker compose exec -T kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic notifications --partitions 3 --replication-factor 1
+```
+
+Run the host in one terminal:
+
+```powershell
+dotnet run --project samples/WebSocketNotifications.Host --urls http://localhost:5000
+```
+
+Run the Next.js client in another:
+
+```powershell
+cd samples/clients/websocket-notifications-nextjs
+Copy-Item .env.example .env.local
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`; the local sample defaults to user `user-1`. Start the producer API in another terminal:
+
+```powershell
+dotnet run --project samples/NotificationProducer --urls http://localhost:5001
+```
+
+Open `http://localhost:5001/swagger` to inspect and invoke the producer endpoints through Swagger UI.
+
+Then publish a direct-user notification:
+
+```powershell
+$body = @{ targets = @('user-1'); payload = @{ score = 7 } } | ConvertTo-Json -Depth 4
+Invoke-RestMethod -Method Post -Uri http://localhost:5001/api/notifications/users -ContentType application/json -Body $body
+```
+
+For a fully automated real-broker check:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-live-e2e.ps1
+```
+
+Additional details are in the [host sample](samples/WebSocketNotifications.Host/README.md), [producer sample](samples/NotificationProducer/README.md), and [Next.js client](samples/clients/websocket-notifications-nextjs/README.md).
+
+## Tests and development
+
+```powershell
+dotnet test WebSocketNotifications.slnx --configuration Release
+cd samples/clients/websocket-notifications-nextjs
+npm test
+npm run typecheck
+npm run build
+```
+
+The repository contains one core library, one behavior-oriented xUnit project, two .NET samples, and one Next.js client. Read [testing](docs/testing.md) and [development](docs/development.md) before contributing.
+
+## Reference documentation
+
+- [Architecture](docs/architecture.md)
+- [WebSocket protocol](docs/protocol.md)
+- [Configuration](docs/configuration.md)
+- [Message-source boundary](docs/message-source.md)
+- [Delivery semantics](docs/delivery-semantics.md)
+- [Ordering](docs/ordering.md)
+- [Testing](docs/testing.md)
+- [Development](docs/development.md)
+- [V1 limitations](docs/limitations.md)
+- [Decision log](docs/decision-log.md)
+- [Changelog](CHANGELOG.md)
+- [Release notes](RELEASE_NOTES.md)
+
+## Roadmap
+
+Potential post-V1 work includes a distributed recipient-resolution/backplane design, tenant-aware scopes, replay or durable offline storage, optional application acknowledgement helpers, binary protocol negotiation, subscription TTLs, and multi-region routing. These are roadmap items, not current capabilities.

@@ -1,0 +1,54 @@
+@NotificationProducer_HostAddress = http://localhost:5001
+
+GET {{NotificationProducer_HostAddress}}/
+Accept: application/json
+
+### Users
+POST {{NotificationProducer_HostAddress}}/api/notifications/users
+Content-Type: application/json
+
+{
+  "targets": ["user-1", "user-2"],
+  "payload": { "score": 7 },
+  "key": "user:user-1"
+}
+
+### Groups
+POST {{NotificationProducer_HostAddress}}/api/notifications/groups
+Content-Type: application/json
+
+{
+  "targets": ["operators"],
+  "payload": { "text": "Operations update" }
+}
+
+### Feeds
+POST {{NotificationProducer_HostAddress}}/api/notifications/feeds
+Content-Type: application/json
+
+{
+  "targets": ["match-42"],
+  "payload": { "score": 8 }
+}
+
+### Events
+POST {{NotificationProducer_HostAddress}}/api/notifications/events
+Content-Type: application/json
+
+{
+  "targets": ["score.changed"],
+  "payload": { "score": 9 }
+}
+
+### Combined routing
+POST {{NotificationProducer_HostAddress}}/api/notifications
+Content-Type: application/json
+
+{
+  "userIds": ["user-1"],
+  "groups": ["operators"],
+  "feeds": ["match-42"],
+  "eventTypes": ["score.changed"],
+  "payload": { "score": 10 },
+  "key": "order:42"
+}

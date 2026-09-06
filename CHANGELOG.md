@@ -1,0 +1,34 @@
+# Changelog
+
+All notable changes to this project are documented here.
+
+## [1.0.0-preview.1] - 2026-09-06
+
+### Added
+
+- Provider-neutral .NET 8 WebSocket notification library
+- Authenticated ASP.NET Core endpoint with application user resolution
+- Direct-user, group, feed, and event-type routing
+- Application-controlled subscription authorization and programmatic management
+- Bounded connection buffers with three slow-client policies
+- Single send/receive loops, heartbeat, compression option, and size limits
+- Neutral message-source abstraction and direct publishing hub
+- KafkaHighThroughput hosted consumer and multi-endpoint producer Web API samples
+- Swagger UI and an OpenAPI document for all producer notification endpoints
+- Reconnecting/resubscribing Next.js 16 client and sample UI
+- Next.js clients organized under `samples/clients`
+- Unit, integration, protocol, concurrency, sample, and live Kafka E2E validation
+
+### Behavior
+
+- Direct notifications reach all current connections for a user.
+- Multiple route matches are deduplicated per connection.
+- Notifications expire at the inclusive UTC `ExpiresAt` boundary.
+- Per-connection accepted ordering is preserved by one FIFO sender.
+- Source callback completion represents bounded local routing acceptance; successful connection delivery means WebSocket send completion.
+
+### Known limitations
+
+- Single WebSocket server with in-memory state
+- No replay, durable offline store, distributed backplane, built-in acknowledgement, WebSocket retry, deduplication, or exactly-once guarantee
+- JSON text only; tenant scopes, binary protocol, subscription TTL, and multi-region routing are deferred

@@ -1,0 +1,74 @@
+# Notification Producer API Sample
+
+This .NET 8 minimal Web API publishes neutral notification JSON through KafkaHighThroughput. It never calls the WebSocket library directly.
+
+## Run
+
+Start Kafka using the root `compose.yaml`, then run the API from the repository root:
+
+```powershell
+dotnet run --project samples/NotificationProducer --urls http://localhost:5001
+```
+
+The health endpoint is `GET /`. Notification endpoints are:
+
+Swagger UI is available at `http://localhost:5001/swagger`, with the OpenAPI document at `http://localhost:5001/swagger/v1/swagger.json`. The UI can execute each notification endpoint directly.
+
+| Endpoint | Body routing fields |
+|---|---|
+| `POST /api/notifications/users` | `targets` contains one or more user IDs |
+| `POST /api/notifications/groups` | `targets` contains one or more groups |
+| `POST /api/notifications/feeds` | `targets` contains one or more feeds |
+| `POST /api/notifications/events` | `targets` contains one or more event types |
+| `POST /api/notifications` | Any combination of `userIds`, `groups`, `feeds`, and `eventTypes` |
+
+Targeted request:
+
+```json
+{
+  "targets": ["user-1", "user-2"],
+  "payload": { "score": 7 },
+  "expiresAt": "2026-09-06T12:30:00Z",
+  "key": "user:user-1"
+}
+```
+
+Combined request:
+
+```json
+{
+  "userIds": ["user-1"],
+  "groups": ["operators"],
+  "feeds": ["match-42"],
+  "eventTypes": ["score.changed"],
+  "payload": { "score": 7 },
+  "key": "order:42"
+}
+```
+
+PowerShell example:
+
+```powershell
+$body = @{ targets = @('user-1'); payload = @{ score = 7 } } | ConvertTo-Json -Depth 4
+Invoke-RestMethod -Method Post -Uri http://localhost:5001/api/notifications/users -ContentType application/json -Body $body
+```
+
+A successful Kafka delivery returns HTTP 202 with the message ID, effective key, topic, partition, and offset. Missing payloads, empty/blank targets, non-UTC expiry values, and blank explicit keys return HTTP 400 validation problems.
+
+The sample API has no authentication and is intended for local development only. Add application authentication and authorization before exposing an equivalent publishing endpoint outside a trusted development environment.
+
+## Kafka key and ordering
+
+Use `key` to choose an application ordering domain, such as `user:user-1`, `feed:match-42`, or `order:12345`. When omitted, the API derives a key from the first user, feed, group, or event target in that priority order.
+
+Keys define Kafka partition affinity; they do not provide a global order across unrelated keys or partitions. Never use a WebSocket server identity as the key.
+
+## Configuration
+
+- `NotificationProducer.ProducerName` selects the named KafkaHighThroughput producer.
+- `NotificationProducer.Topic` selects the destination topic.
+- `KafkaProducerClients.Producers` configures brokers, acknowledgements, idempotence, compression, buffering, and metrics.
+
+Both appsettings files are copied to build and publish output so the executable works from its output directory. Override broker values through environment variables or secret providers; do not commit credentials.
+
+The HTTP request waits for Kafka's delivery report before returning. Provider retry/failure behavior remains KafkaHighThroughput configuration rather than WebSocket-library behavior. See `NotificationProducer.http` for executable request examples.
