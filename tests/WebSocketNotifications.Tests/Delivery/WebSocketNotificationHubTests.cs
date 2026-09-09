@@ -14,7 +14,7 @@ public sealed class WebSocketNotificationHubTests
         var registry = new ConnectionRegistry();
         registry.Add("connection-1", "user-1");
         var hub = CreateHub(registry);
-        var subscription = new NotificationSubscription(SubscriptionKind.Feed, "match-42");
+        const string subscription = "feed:match-42";
 
         Assert.True(hub.Subscribe("connection-1", subscription));
         Assert.False(hub.Subscribe("connection-1", subscription));
@@ -29,7 +29,7 @@ public sealed class WebSocketNotificationHubTests
         registry.Add("connection-1", "user-1");
         registry.Add("connection-2", "user-1");
         registry.Add("connection-3", "user-2");
-        var subscription = new NotificationSubscription(SubscriptionKind.Group, "operators");
+        const string subscription = "group:operators";
 
         var changed = CreateHub(registry).SubscribeUserConnections("user-1", subscription);
 
@@ -45,7 +45,7 @@ public sealed class WebSocketNotificationHubTests
         var registry = new ConnectionRegistry();
         registry.Add("connection-1", "user-1");
         registry.Add("connection-2", "user-1");
-        var subscription = new NotificationSubscription(SubscriptionKind.Group, "operators");
+        const string subscription = "group:operators";
         registry.AddSubscription("connection-1", subscription);
         registry.AddSubscription("connection-2", subscription);
         var hub = CreateHub(registry);

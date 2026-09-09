@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using WebSocketNotifications.Abstractions;
 using WebSocketNotifications.Connections;
-using WebSocketNotifications.Contracts;
 
 namespace WebSocketNotifications.Protocol;
 
@@ -111,32 +110,39 @@ internal sealed class ProtocolProcessor(
         ConnectionBuffer outgoing,
         CancellationToken cancellationToken)
     {
-        if (!TryCreateSubscription(root, out var subscription))
+        if (!TryGetSubscriptions(root, out var subscriptions))
         {
             EnqueueError(
                 connectionId,
                 outgoing,
                 requestId,
                 "invalid_subscription",
-                "Subscription kind must be group, feed, or eventType and value must be non-empty.");
+                "Subscriptions must be a non-empty array of nonblank strings.");
             return;
         }
 
-        // Authorization runs before the registry changes; a denied subscription therefore never
-        // becomes briefly visible to a concurrent notification dispatch.
-        var context = new SubscriptionAuthorizationContext(connectionId, userId, subscription);
-        if (!await authorizer.AuthorizeAsync(context, cancellationToken).ConfigureAwait(false))
+        // Authorize the complete request before mutating the registry so a denied key cannot
+        // leave an earlier key from the same command partially subscribed.
+        foreach (var subscription in subscriptions)
         {
-            EnqueueError(
-                connectionId,
-                outgoing,
-                requestId,
-                "subscription_denied",
-                "The application denied this subscription.");
-            return;
+            var context = new SubscriptionAuthorizationContext(connectionId, userId, subscription);
+            if (!await authorizer.AuthorizeAsync(context, cancellationToken).ConfigureAwait(false))
+            {
+                EnqueueError(
+                    connectionId,
+                    outgoing,
+                    requestId,
+                    "subscription_denied",
+                    "The application denied this subscription.");
+                return;
+            }
         }
 
-        registry.AddSubscription(connectionId, subscription);
+        foreach (var subscription in subscriptions)
+        {
+            registry.AddSubscription(connectionId, subscription);
+        }
+
         Enqueue(connectionId, outgoing, new ProtocolResponse("subscribed", requestId));
     }
 
@@ -146,18 +152,22 @@ internal sealed class ProtocolProcessor(
         string? requestId,
         ConnectionBuffer outgoing)
     {
-        if (!TryCreateSubscription(root, out var subscription))
+        if (!TryGetSubscriptions(root, out var subscriptions))
         {
             EnqueueError(
                 connectionId,
                 outgoing,
                 requestId,
                 "invalid_subscription",
-                "Subscription kind must be group, feed, or eventType and value must be non-empty.");
+                "Subscriptions must be a non-empty array of nonblank strings.");
             return;
         }
 
-        registry.RemoveSubscription(connectionId, subscription);
+        foreach (var subscription in subscriptions)
+        {
+            registry.RemoveSubscription(connectionId, subscription);
+        }
+
         Enqueue(connectionId, outgoing, new ProtocolResponse("unsubscribed", requestId));
     }
 
@@ -178,33 +188,36 @@ internal sealed class ProtocolProcessor(
         }
     }
 
-    private static bool TryCreateSubscription(
+    private static bool TryGetSubscriptions(
         JsonElement root,
-        out NotificationSubscription subscription)
+        out IReadOnlyList<string> subscriptions)
     {
-        subscription = null!;
-        if (!TryGetString(root, "kind", out var kindText) ||
-            !TryGetString(root, "value", out var value) ||
-            string.IsNullOrWhiteSpace(value))
+        subscriptions = [];
+        if (!root.TryGetProperty("subscriptions", out var property) ||
+            property.ValueKind != JsonValueKind.Array)
         {
             return false;
         }
 
-        var kind = kindText switch
+        var values = new List<string>();
+        var unique = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var element in property.EnumerateArray())
         {
-            "group" => SubscriptionKind.Group,
-            "feed" => SubscriptionKind.Feed,
-            "eventType" => SubscriptionKind.EventType,
-            _ => (SubscriptionKind)(-1),
-        };
+            if (element.ValueKind != JsonValueKind.String ||
+                string.IsNullOrWhiteSpace(element.GetString()))
+            {
+                return false;
+            }
 
-        if (!Enum.IsDefined(kind))
-        {
-            return false;
+            var value = element.GetString()!;
+            if (unique.Add(value))
+            {
+                values.Add(value);
+            }
         }
 
-        subscription = new NotificationSubscription(kind, value);
-        return true;
+        subscriptions = values;
+        return values.Count > 0;
     }
 
     private static bool TryGetString(JsonElement root, string propertyName, out string value)

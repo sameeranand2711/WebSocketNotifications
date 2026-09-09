@@ -1,8 +1,6 @@
-using WebSocketNotifications.Contracts;
-
 namespace WebSocketNotifications.Abstractions;
 
-/// <summary>Allows an application to authorize group, feed, and event-type subscriptions.</summary>
+/// <summary>Allows an application to authorize opaque, application-defined subscription keys.</summary>
 /// <remarks>Direct user routing is derived from authentication and is not authorized through this interface.</remarks>
 public interface ISubscriptionAuthorizer
 {
@@ -18,8 +16,8 @@ public interface ISubscriptionAuthorizer
 /// <summary>Describes the authenticated connection and requested subscription.</summary>
 /// <param name="ConnectionId">The library-assigned identifier for this socket connection.</param>
 /// <param name="UserId">The application user identifier resolved from the authenticated request.</param>
-/// <param name="Subscription">The group, feed, or event-type subscription being requested.</param>
+/// <param name="Subscription">The opaque subscription key being requested.</param>
 public sealed record SubscriptionAuthorizationContext(
     string ConnectionId,
     string UserId,
-    NotificationSubscription Subscription);
+    string Subscription);

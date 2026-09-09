@@ -29,6 +29,8 @@ An upstream at-least-once provider can create duplicate `MessageId` values at cl
 
 Socket-send completion does not prove application processing. Applications needing that guarantee must add domain acknowledgements and durable tracking outside the library.
 
+The absence of a tenant or partner model does not prevent namespaced identities or subscriptions. Applications may resolve globally unique user IDs and authorize opaque keys such as `tenant:abc:group:premium`; the library does not parse or enforce those conventions.
+
 ## Deferred roadmap areas
 
 A future version may define a distributed recipient resolver/backplane, tenant-aware subscription scopes, replay or offline storage, optional acknowledgement helpers, binary negotiation, subscription expiry, or multi-region routing. None of these is partially implemented or promised by V1.

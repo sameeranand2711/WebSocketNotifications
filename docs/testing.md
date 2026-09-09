@@ -8,7 +8,7 @@ The xUnit project mirrors the production responsibilities:
 - `Configuration`: defaults, configuration binding, valid ranges, and deferred validation
 - `Connections`: lifecycle, multiple connections per user, subscription cleanup, bounded policies, sender/receiver ownership, failure, fragmentation, size limits, concurrency, and heartbeat
 - `Delivery`: route union/deduplication, expiry, serialization, buffer isolation, ordering, and programmatic hub behavior
-- `Protocol`: authorization, subscribe/unsubscribe, heartbeat pong, malformed input, and application messages
+- `Protocol`: opaque-key authorization, batch subscribe/unsubscribe, duplicate handling, atomic denial, heartbeat pong, malformed input, and application messages
 - `Hosting`: DI registration, optional source behavior, authentication/identity boundaries, and real TestServer WebSockets
 - `Samples`: Kafka adapter handoff/failure propagation and producer API routing, validation, key, and receipt behavior
 
@@ -54,7 +54,7 @@ Process logs are written to the ignored `.e2e` directory when diagnosis is neede
 
 ## Current release evidence
 
-- 105 .NET tests passing with no skips
+- 106 .NET tests passing with no skips
 - 6 Node tests passing
 - Strict TypeScript check passing
 - Next.js optimized production build passing

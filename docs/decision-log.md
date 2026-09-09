@@ -10,7 +10,9 @@ ASP.NET Core performs authentication and `IWebSocketUserResolver` maps the authe
 
 ## Application-controlled subscriptions
 
-Client subscriptions are limited to group, feed, and event type. `ISubscriptionAuthorizer` is called before mutation and defaults to deny. Authorization rules remain in the consuming application's domain.
+Subscriptions are opaque string keys rather than library-defined group, feed, or event categories. `ISubscriptionAuthorizer` receives each key before mutation and defaults to deny. Naming, tenant/partner scoping, and authorization rules remain in the consuming application's domain.
+
+Direct `UserIds` remain separate because direct routing is derived from authenticated identity and cannot be changed through client subscription commands. The pre-V1 category-specific `NotificationSubscription` and `SubscriptionKind` types were removed rather than deprecated.
 
 ## Single server for V1
 

@@ -1,15 +1,9 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { SubscriptionKind, useWebSocketNotifications } from "../hooks/useWebSocketNotifications";
+import { useWebSocketNotifications } from "../hooks/useWebSocketNotifications";
 
 const baseUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL ?? "ws://localhost:5000/ws/notifications";
-
-const subscriptionLabels: Record<SubscriptionKind, string> = {
-  group: "Group",
-  feed: "Feed",
-  eventType: "Event type",
-};
 
 const stateLabels: Record<string, string> = {
   connected: "Live",
@@ -61,8 +55,7 @@ function notificationTitle(notification: Record<string, unknown>) {
 
 export default function Home() {
   const [userId, setUserId] = useState("user-1");
-  const [kind, setKind] = useState<SubscriptionKind>("group");
-  const [value, setValue] = useState("operators");
+  const [subscription, setSubscription] = useState("group:operators");
   const url = useMemo(() => {
     const parsed = new URL(baseUrl);
     parsed.searchParams.set("userId", userId);
@@ -73,7 +66,7 @@ export default function Home() {
 
   function subscribe(event: FormEvent) {
     event.preventDefault();
-    if (value.trim()) notifications.subscribe(kind, value.trim());
+    if (subscription.trim()) notifications.subscribe(subscription.trim());
   }
 
   return (
@@ -144,20 +137,12 @@ export default function Home() {
                 </div>
                 <form onSubmit={subscribe}>
                   <div className="row g-2">
-                    <div className="col-sm-5 col-xl-12 col-xxl-5">
-                      <label className="form-label" htmlFor="subscriptionKind">Channel type</label>
-                      <select id="subscriptionKind" className="form-select" value={kind} onChange={(event) => setKind(event.target.value as SubscriptionKind)}>
-                        <option value="group">Group</option>
-                        <option value="feed">Feed</option>
-                        <option value="eventType">Event type</option>
-                      </select>
-                    </div>
-                    <div className="col-sm-7 col-xl-12 col-xxl-7">
-                      <label className="form-label" htmlFor="subscriptionValue">Channel value</label>
-                      <input id="subscriptionValue" className="form-control" value={value} onChange={(event) => setValue(event.target.value)} placeholder="e.g. operators" autoComplete="off" />
+                    <div className="col-12">
+                      <label className="form-label" htmlFor="subscriptionKey">Subscription key</label>
+                      <input id="subscriptionKey" className="form-control" value={subscription} onChange={(event) => setSubscription(event.target.value)} placeholder="e.g. group:operators" autoComplete="off" />
                     </div>
                   </div>
-                  <button className="btn btn-signal w-100" type="submit" disabled={!value.trim()}><PlusIcon /> Add subscription</button>
+                  <button className="btn btn-signal w-100" type="submit" disabled={!subscription.trim()}><PlusIcon /> Add subscription</button>
                 </form>
 
                 <div className="active-label d-flex justify-content-between align-items-center">
@@ -168,9 +153,9 @@ export default function Home() {
                   {notifications.subscriptions.length === 0 ? (
                     <p className="empty-channels">No channels selected yet.</p>
                   ) : notifications.subscriptions.map((subscription) => (
-                    <div className="subscription-chip" key={`${subscription.kind}:${subscription.value}`}>
-                      <span><small>{subscriptionLabels[subscription.kind]}</small><strong>{subscription.value}</strong></span>
-                      <button type="button" onClick={() => notifications.unsubscribe(subscription.kind, subscription.value)} aria-label={`Unsubscribe from ${subscription.value}`}><CloseIcon /></button>
+                    <div className="subscription-chip" key={subscription}>
+                      <span><small>Application key</small><strong>{subscription}</strong></span>
+                      <button type="button" onClick={() => notifications.unsubscribe(subscription)} aria-label={`Unsubscribe from ${subscription}`}><CloseIcon /></button>
                     </div>
                   ))}
                 </div>

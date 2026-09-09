@@ -5,7 +5,7 @@ This Next.js 16 sample demonstrates the V1 browser protocol with a reusable clie
 ## Features
 
 - Connection state display
-- Group, feed, and event-type subscribe/unsubscribe
+- Opaque subscription-key subscribe/unsubscribe
 - Notification and protocol logs
 - Heartbeat ping/pong handling
 - Bounded exponential reconnect delay with jitter
@@ -47,13 +47,15 @@ const client = new WebSocketNotificationClient({
 });
 
 client.connect();
-client.subscribe("group", "operators");
-client.unsubscribe("group", "operators");
+client.subscribe("group:operators");
+client.unsubscribe("group:operators");
 client.sendApplicationMessage({ type: "sample.client-event" });
 client.disconnect();
 ```
 
 The React UI uses `useWebSocketNotifications` in `src/hooks` to expose connection state, subscriptions, notifications, logs, and actions.
+
+The client does not parse subscription prefixes. Values such as `group:operators`, `role:admin`, or `tenant:abc:market:nse` are application-defined opaque strings.
 
 ## Validate
 

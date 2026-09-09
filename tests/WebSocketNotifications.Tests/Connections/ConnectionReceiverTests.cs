@@ -11,14 +11,14 @@ public sealed class ConnectionReceiverTests
     {
         var socket = new ScriptedWebSocket();
         socket.AddText("{\"type\":\"subscribe\",\"requestId\":\"r1\",", endOfMessage: false);
-        socket.AddText("\"kind\":\"group\",\"value\":\"operators\"}", endOfMessage: true);
+        socket.AddText("\"subscriptions\":[\"group:operators\"]}", endOfMessage: true);
         socket.AddClose();
         var (registry, receiver) = CreateReceiver(socket, maxIncomingMessageSize: 1024);
 
         await receiver.RunAsync(CancellationToken.None);
 
         Assert.Equal(
-            [new NotificationSubscription(SubscriptionKind.Group, "operators")],
+            ["group:operators"],
             registry.GetSubscriptions("connection-1"));
     }
 

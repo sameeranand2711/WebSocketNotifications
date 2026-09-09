@@ -6,7 +6,7 @@ using NotificationProducer.Contracts;
 
 namespace NotificationProducer.Endpoints;
 
-/// <summary>Maps the sample's dimension-specific and combined notification endpoints.</summary>
+/// <summary>Maps the sample's direct-user, subscription, and combined notification endpoints.</summary>
 internal static class NotificationProducerEndpointRouteBuilderExtensions
 {
     public static IEndpointRouteBuilder MapNotificationProducerEndpoints(this IEndpointRouteBuilder endpoints)
@@ -15,28 +15,34 @@ internal static class NotificationProducerEndpointRouteBuilderExtensions
 
         var group = endpoints.MapGroup("/api/notifications")
             .WithTags("Notifications");
-        group.MapPost("/users", (TargetedNotificationRequest request, INotificationPublisher publisher,
+        group.MapPost("/users", (UserNotificationRequest request, INotificationPublisher publisher,
                 TimeProvider timeProvider, CancellationToken cancellationToken) =>
-            PublishTargetedAsync(request, RoutingDimension.User, publisher, timeProvider, cancellationToken))
+            PublishTargetedAsync(
+                request.Users,
+                request.Payload,
+                request.ExpiresAt,
+                request.Key,
+                targetsAreUsers: true,
+                "users",
+                publisher,
+                timeProvider,
+                cancellationToken))
             .WithSummary("Publish to one or more users")
             .Produces<PublishNotificationResponse>(StatusCodes.Status202Accepted)
             .ProducesValidationProblem();
-        group.MapPost("/groups", (TargetedNotificationRequest request, INotificationPublisher publisher,
+        group.MapPost("/subscriptions", (SubscriptionNotificationRequest request, INotificationPublisher publisher,
                 TimeProvider timeProvider, CancellationToken cancellationToken) =>
-            PublishTargetedAsync(request, RoutingDimension.Group, publisher, timeProvider, cancellationToken))
-            .WithSummary("Publish to one or more groups")
-            .Produces<PublishNotificationResponse>(StatusCodes.Status202Accepted)
-            .ProducesValidationProblem();
-        group.MapPost("/feeds", (TargetedNotificationRequest request, INotificationPublisher publisher,
-                TimeProvider timeProvider, CancellationToken cancellationToken) =>
-            PublishTargetedAsync(request, RoutingDimension.Feed, publisher, timeProvider, cancellationToken))
-            .WithSummary("Publish to one or more feeds")
-            .Produces<PublishNotificationResponse>(StatusCodes.Status202Accepted)
-            .ProducesValidationProblem();
-        group.MapPost("/events", (TargetedNotificationRequest request, INotificationPublisher publisher,
-                TimeProvider timeProvider, CancellationToken cancellationToken) =>
-            PublishTargetedAsync(request, RoutingDimension.Event, publisher, timeProvider, cancellationToken))
-            .WithSummary("Publish to one or more event types")
+            PublishTargetedAsync(
+                request.Subscriptions,
+                request.Payload,
+                request.ExpiresAt,
+                request.Key,
+                targetsAreUsers: false,
+                "subscriptions",
+                publisher,
+                timeProvider,
+                cancellationToken))
+            .WithSummary("Publish to one or more opaque subscription keys")
             .Produces<PublishNotificationResponse>(StatusCodes.Status202Accepted)
             .ProducesValidationProblem();
         group.MapPost("", PublishCombinedAsync)
@@ -48,14 +54,18 @@ internal static class NotificationProducerEndpointRouteBuilderExtensions
     }
 
     private static Task<IResult> PublishTargetedAsync(
-        TargetedNotificationRequest request,
-        RoutingDimension dimension,
+        string[]? requestedTargets,
+        JsonElement payload,
+        DateTimeOffset? expiresAt,
+        string? key,
+        bool targetsAreUsers,
+        string targetProperty,
         INotificationPublisher publisher,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        var requestTargets = request.Targets ?? [];
-        var errors = Validate(requestTargets, request.Payload, request.ExpiresAt, request.Key, "targets");
+        var requestTargets = requestedTargets ?? [];
+        var errors = Validate(requestTargets, payload, expiresAt, key, targetProperty);
         if (errors.Count > 0)
         {
             return Task.FromResult(Results.ValidationProblem(errors));
@@ -63,13 +73,11 @@ internal static class NotificationProducerEndpointRouteBuilderExtensions
 
         var targets = requestTargets.ToArray();
         var notification = CreateNotification(
-            dimension == RoutingDimension.User ? targets : [],
-            dimension == RoutingDimension.Group ? targets : [],
-            dimension == RoutingDimension.Feed ? targets : [],
-            dimension == RoutingDimension.Event ? targets : [],
-            request.Payload,
-            request.ExpiresAt,
-            request.Key,
+            targetsAreUsers ? targets : [],
+            targetsAreUsers ? [] : targets,
+            payload,
+            expiresAt,
+            key,
             timeProvider);
         return PublishAsync(notification, publisher, cancellationToken);
     }
@@ -81,10 +89,8 @@ internal static class NotificationProducerEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         var userIds = request.UserIds ?? [];
-        var groups = request.Groups ?? [];
-        var feeds = request.Feeds ?? [];
-        var eventTypes = request.EventTypes ?? [];
-        var allTargets = userIds.Concat(groups).Concat(feeds).Concat(eventTypes).ToArray();
+        var subscriptions = request.Subscriptions ?? [];
+        var allTargets = userIds.Concat(subscriptions).ToArray();
         var errors = Validate(allTargets, request.Payload, request.ExpiresAt, request.Key, "routingTargets");
         if (errors.Count > 0)
         {
@@ -93,9 +99,7 @@ internal static class NotificationProducerEndpointRouteBuilderExtensions
 
         var notification = CreateNotification(
             userIds,
-            groups,
-            feeds,
-            eventTypes,
+            subscriptions,
             request.Payload,
             request.ExpiresAt,
             request.Key,
@@ -120,9 +124,7 @@ internal static class NotificationProducerEndpointRouteBuilderExtensions
 
     private static QueuedNotification CreateNotification(
         string[] userIds,
-        string[] groups,
-        string[] feeds,
-        string[] eventTypes,
+        string[] subscriptions,
         JsonElement payload,
         DateTimeOffset? expiresAt,
         string? key,
@@ -130,14 +132,12 @@ internal static class NotificationProducerEndpointRouteBuilderExtensions
     {
         // A stable key keeps related records on one Kafka partition. The caller may override
         // this default when its ordering domain spans several notification targets.
-        var effectiveKey = key ?? DefaultKey(userIds, groups, feeds, eventTypes);
+        var effectiveKey = key ?? DefaultKey(userIds, subscriptions);
         return new QueuedNotification(
             Guid.NewGuid().ToString("N"),
             effectiveKey,
             userIds.ToArray(),
-            groups.ToArray(),
-            feeds.ToArray(),
-            eventTypes.ToArray(),
+            subscriptions.ToArray(),
             payload.Clone(),
             timeProvider.GetUtcNow(),
             expiresAt);
@@ -176,33 +176,13 @@ internal static class NotificationProducerEndpointRouteBuilderExtensions
 
     private static string DefaultKey(
         string[] userIds,
-        string[] groups,
-        string[] feeds,
-        string[] eventTypes)
+        string[] subscriptions)
     {
         if (userIds.FirstOrDefault() is { } userId)
         {
             return $"user:{userId}";
         }
 
-        if (feeds.FirstOrDefault() is { } feed)
-        {
-            return $"feed:{feed}";
-        }
-
-        if (groups.FirstOrDefault() is { } group)
-        {
-            return $"group:{group}";
-        }
-
-        return $"event:{eventTypes[0]}";
-    }
-
-    private enum RoutingDimension
-    {
-        User,
-        Group,
-        Feed,
-        Event,
+        return subscriptions[0];
     }
 }

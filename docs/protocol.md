@@ -8,15 +8,17 @@ Connect with an HTTP WebSocket upgrade to the configured endpoint (default `/ws/
 
 The application-provided `IWebSocketUserResolver` must return a nonblank user ID. Failure to resolve identity returns HTTP 401 before upgrade. A normal HTTP request without a WebSocket upgrade returns HTTP 400.
 
-Clients cannot subscribe to user IDs. Direct-user delivery always uses the resolved authenticated identity.
+Clients cannot modify direct `UserIds`. Direct-user delivery always uses the resolved authenticated identity; subscription strings are a separate application-authorized routing space.
 
 ## Subscribe
 
 ```json
-{"type":"subscribe","requestId":"request-1","kind":"group","value":"operators"}
+{"type":"subscribe","requestId":"request-1","subscriptions":["group:operators","feed:football"]}
 ```
 
-`kind` must be exactly `group`, `feed`, or `eventType`; `value` must be nonblank. `requestId` is optional but recommended for correlating responses. The application authorizer runs before the subscription is added.
+`subscriptions` must be a non-empty array of nonblank strings. Duplicate keys in one command are processed once. `requestId` is optional but recommended for correlating responses. The application authorizer receives each opaque key, and all keys are authorized before any are added.
+
+The library does not interpret prefixes. Values such as `group:operators`, `role:admin`, `tenant:abc:group:premium`, and `partner:p1:event:deposit.completed` are conventions owned entirely by the consuming application.
 
 Success:
 
@@ -40,7 +42,7 @@ Invalid subscription fields use code `invalid_subscription`.
 ## Unsubscribe
 
 ```json
-{"type":"unsubscribe","requestId":"request-2","kind":"feed","value":"match-42"}
+{"type":"unsubscribe","requestId":"request-2","subscriptions":["feed:match-42"]}
 ```
 
 The operation is idempotent for the current connection and returns:
@@ -61,7 +63,7 @@ The operation is idempotent for the current connection and returns:
 }
 ```
 
-`expiresAt` is `null` when no expiry was supplied. Routing targets are not exposed to clients. A connection matching multiple routing dimensions receives one notification frame.
+`expiresAt` is `null` when no expiry was supplied. Routing targets are not exposed to clients. A connection matching both a direct user and one or more subscription keys receives one notification frame.
 
 ## Heartbeat
 

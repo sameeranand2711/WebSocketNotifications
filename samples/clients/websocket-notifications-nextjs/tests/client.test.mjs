@@ -41,7 +41,7 @@ test("reconnect schedules one loop and resubscribes after open", () => {
   const { client, sockets, scheduled } = harness();
   client.connect();
   sockets[0].open();
-  client.subscribe("group", "operators");
+  client.subscribe("tenant:abc:group:operators");
   sockets[0].failClose();
   sockets[0].failClose();
   assert.equal(scheduled.length, 1);
@@ -49,8 +49,8 @@ test("reconnect schedules one loop and resubscribes after open", () => {
   scheduled.shift()();
   sockets[1].open();
   const commands = sockets[1].sent.map(JSON.parse);
-  assert.deepEqual(commands.map((command) => [command.type, command.kind, command.value]), [
-    ["subscribe", "group", "operators"],
+  assert.deepEqual(commands.map((command) => [command.type, command.subscriptions]), [
+    ["subscribe", ["tenant:abc:group:operators"]],
   ]);
 });
 
@@ -58,9 +58,9 @@ test("unsubscribe while disconnected prevents resubscription", () => {
   const { client, sockets, scheduled } = harness();
   client.connect();
   sockets[0].open();
-  client.subscribe("feed", "match-42");
+  client.subscribe("feed:match-42");
   sockets[0].failClose();
-  client.unsubscribe("feed", "match-42");
+  client.unsubscribe("feed:match-42");
   scheduled.shift()();
   sockets[1].open();
   assert.deepEqual(sockets[1].sent, []);

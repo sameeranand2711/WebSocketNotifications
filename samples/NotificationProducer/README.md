@@ -16,17 +16,15 @@ Swagger UI is available at `http://localhost:5001/swagger`, with the OpenAPI doc
 
 | Endpoint | Body routing fields |
 |---|---|
-| `POST /api/notifications/users` | `targets` contains one or more user IDs |
-| `POST /api/notifications/groups` | `targets` contains one or more groups |
-| `POST /api/notifications/feeds` | `targets` contains one or more feeds |
-| `POST /api/notifications/events` | `targets` contains one or more event types |
-| `POST /api/notifications` | Any combination of `userIds`, `groups`, `feeds`, and `eventTypes` |
+| `POST /api/notifications/users` | `users` contains one or more user IDs |
+| `POST /api/notifications/subscriptions` | `subscriptions` contains one or more opaque subscription keys |
+| `POST /api/notifications` | Any combination of `userIds` and `subscriptions` |
 
 Targeted request:
 
 ```json
 {
-  "targets": ["user-1", "user-2"],
+  "users": ["user-1", "user-2"],
   "payload": { "score": 7 },
   "expiresAt": "2026-09-06T12:30:00Z",
   "key": "user:user-1"
@@ -38,9 +36,11 @@ Combined request:
 ```json
 {
   "userIds": ["user-1"],
-  "groups": ["operators"],
-  "feeds": ["match-42"],
-  "eventTypes": ["score.changed"],
+  "subscriptions": [
+    "group:operators",
+    "feed:match-42",
+    "tenant:abc:event:score.changed"
+  ],
   "payload": { "score": 7 },
   "key": "order:42"
 }
@@ -49,17 +49,19 @@ Combined request:
 PowerShell example:
 
 ```powershell
-$body = @{ targets = @('user-1'); payload = @{ score = 7 } } | ConvertTo-Json -Depth 4
+$body = @{ users = @('user-1'); payload = @{ score = 7 } } | ConvertTo-Json -Depth 4
 Invoke-RestMethod -Method Post -Uri http://localhost:5001/api/notifications/users -ContentType application/json -Body $body
 ```
 
-A successful Kafka delivery returns HTTP 202 with the message ID, effective key, topic, partition, and offset. Missing payloads, empty/blank targets, non-UTC expiry values, and blank explicit keys return HTTP 400 validation problems.
+A successful Kafka delivery returns HTTP 202 with the message ID, effective key, topic, partition, and offset. Missing payloads, empty/blank users or subscriptions, non-UTC expiry values, and blank explicit keys return HTTP 400 validation problems.
 
 The sample API has no authentication and is intended for local development only. Add application authentication and authorization before exposing an equivalent publishing endpoint outside a trusted development environment.
 
+Subscription values are opaque to the library and samples. The consuming application defines and authorizes conventions such as `role:admin`, `tenant:abc:group:premium`, or `partner:p1:event:deposit.completed`. Direct user IDs remain separate because they correspond to authenticated identities rather than client-controlled subscriptions.
+
 ## Kafka key and ordering
 
-Use `key` to choose an application ordering domain, such as `user:user-1`, `feed:match-42`, or `order:12345`. When omitted, the API derives a key from the first user, feed, group, or event target in that priority order.
+Use `key` to choose an application ordering domain, such as `user:user-1`, `feed:match-42`, or `order:12345`. When omitted, the API derives a key from the first user or uses the first subscription key.
 
 Keys define Kafka partition affinity; they do not provide a global order across unrelated keys or partitions. Never use a WebSocket server identity as the key.
 

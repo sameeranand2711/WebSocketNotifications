@@ -13,6 +13,8 @@ public interface INotificationMessageSource
 
 The library accepts zero or one registered source. Zero allows direct publishing through `WebSocketNotificationHub`; more than one is rejected because combining independent sources would make ordering semantics ambiguous.
 
+The neutral envelope contains only direct `UserIds` and opaque `Subscriptions`. An adapter passes subscription strings through unchanged; the consuming application owns meanings and namespaces such as groups, events, roles, tenants, or partners.
+
 ## Library responsibility
 
 - Accept a neutral `NotificationEnvelope`

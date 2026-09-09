@@ -34,28 +34,40 @@ public sealed class NotificationEnvelopeTests
     [Fact]
     public void Constructor_WhenRoutingEntryIsBlank_RejectsEnvelope()
     {
-        Assert.Throws<ArgumentException>(() => Create(groups: ["group-1", " "]));
+        Assert.Throws<ArgumentException>(() => Create(subscriptions: ["group:premium", " "]));
     }
 
     [Fact]
     public void Constructor_CopiesRoutingCollectionsAndUsesSafeEmptyCollections()
     {
         var users = new[] { "user-1" };
-        var envelope = Create(userIds: users);
+        var subscriptions = new[] { "group:premium" };
+        var envelope = Create(userIds: users, subscriptions: subscriptions);
 
         users[0] = "changed";
+        subscriptions[0] = "changed";
 
         Assert.Equal(["user-1"], envelope.UserIds);
-        Assert.Empty(envelope.Groups);
-        Assert.Empty(envelope.Feeds);
-        Assert.Empty(envelope.EventTypes);
+        Assert.Equal(["group:premium"], envelope.Subscriptions);
+    }
+
+    [Fact]
+    public void Constructor_AllowsUsersOrSubscriptionsIndependently()
+    {
+        var direct = Create(userIds: ["user-1"]);
+        var subscribed = Create(subscriptions: ["tenant:abc:group:premium"]);
+
+        Assert.Equal(["user-1"], direct.UserIds);
+        Assert.Empty(direct.Subscriptions);
+        Assert.Empty(subscribed.UserIds);
+        Assert.Equal(["tenant:abc:group:premium"], subscribed.Subscriptions);
     }
 
     [Fact]
     public void IsExpired_UsesInclusiveUtcExpiryBoundary()
     {
         var expiry = CreatedAt.AddMinutes(1);
-        var envelope = Create(expiresAt: expiry, feeds: ["scores"]);
+        var envelope = Create(expiresAt: expiry, subscriptions: ["feed:scores"]);
 
         Assert.False(envelope.IsExpired(expiry.AddTicks(-1)));
         Assert.True(envelope.IsExpired(expiry));
@@ -69,7 +81,7 @@ public sealed class NotificationEnvelopeTests
         using (var document = JsonDocument.Parse("{\"score\":42}"))
         {
             payload = document.RootElement;
-            var envelope = Create(payload: payload, eventTypes: ["score.changed"]);
+            var envelope = Create(payload: payload, subscriptions: ["event:score.changed"]);
             payload = envelope.Payload;
         }
 
@@ -82,16 +94,12 @@ public sealed class NotificationEnvelopeTests
         DateTimeOffset? createdAt = null,
         DateTimeOffset? expiresAt = null,
         IEnumerable<string>? userIds = null,
-        IEnumerable<string>? groups = null,
-        IEnumerable<string>? feeds = null,
-        IEnumerable<string>? eventTypes = null) =>
+        IEnumerable<string>? subscriptions = null) =>
         new(
             messageId!,
             payload ?? JsonSerializer.SerializeToElement(new { text = "hello" }),
             createdAt ?? CreatedAt,
             expiresAt,
             userIds,
-            groups,
-            feeds,
-            eventTypes);
+            subscriptions);
 }
