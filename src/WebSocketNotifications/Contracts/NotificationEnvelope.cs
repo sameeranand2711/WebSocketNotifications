@@ -13,9 +13,7 @@ public sealed class NotificationEnvelope
     /// <param name="createdAt">The UTC creation time.</param>
     /// <param name="expiresAt">The optional inclusive UTC expiry boundary.</param>
     /// <param name="userIds">Direct-user routing targets.</param>
-    /// <param name="groups">Group routing targets.</param>
-    /// <param name="feeds">Feed routing targets.</param>
-    /// <param name="eventTypes">Event-type routing targets.</param>
+    /// <param name="subscriptions">Opaque, application-defined subscription keys.</param>
     /// <remarks>At least one routing target is required. A connection matching several targets receives one copy.</remarks>
     public NotificationEnvelope(
         string messageId,
@@ -23,9 +21,7 @@ public sealed class NotificationEnvelope
         DateTimeOffset createdAt,
         DateTimeOffset? expiresAt = null,
         IEnumerable<string>? userIds = null,
-        IEnumerable<string>? groups = null,
-        IEnumerable<string>? feeds = null,
-        IEnumerable<string>? eventTypes = null)
+        IEnumerable<string>? subscriptions = null)
     {
         if (string.IsNullOrWhiteSpace(messageId))
         {
@@ -44,14 +40,9 @@ public sealed class NotificationEnvelope
         }
 
         var userIdValues = CopyTargets(userIds, nameof(userIds));
-        var groupValues = CopyTargets(groups, nameof(groups));
-        var feedValues = CopyTargets(feeds, nameof(feeds));
-        var eventTypeValues = CopyTargets(eventTypes, nameof(eventTypes));
+        var subscriptionValues = CopyTargets(subscriptions, nameof(subscriptions));
 
-        if (userIdValues.Count == 0 &&
-            groupValues.Count == 0 &&
-            feedValues.Count == 0 &&
-            eventTypeValues.Count == 0)
+        if (userIdValues.Count == 0 && subscriptionValues.Count == 0)
         {
             throw new ArgumentException("At least one routing target is required.");
         }
@@ -61,9 +52,7 @@ public sealed class NotificationEnvelope
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;
         UserIds = userIdValues;
-        Groups = groupValues;
-        Feeds = feedValues;
-        EventTypes = eventTypeValues;
+        Subscriptions = subscriptionValues;
     }
 
     /// <summary>Gets the application-assigned notification identifier.</summary>
@@ -81,14 +70,8 @@ public sealed class NotificationEnvelope
     /// <summary>Gets direct-user routing targets.</summary>
     public IReadOnlyList<string> UserIds { get; }
 
-    /// <summary>Gets group routing targets.</summary>
-    public IReadOnlyList<string> Groups { get; }
-
-    /// <summary>Gets feed routing targets.</summary>
-    public IReadOnlyList<string> Feeds { get; }
-
-    /// <summary>Gets event-type routing targets.</summary>
-    public IReadOnlyList<string> EventTypes { get; }
+    /// <summary>Gets opaque subscription keys whose meaning is owned by the consuming application.</summary>
+    public IReadOnlyList<string> Subscriptions { get; }
 
     /// <summary>Determines whether this notification has expired at the supplied UTC time.</summary>
     /// <param name="utcNow">The UTC instant against which to compare the inclusive expiry boundary.</param>

@@ -1,6 +1,6 @@
 // @ts-check
 
-import { parseServerMessage, subscriptionKey } from "./protocol.js";
+import { parseServerMessage } from "./protocol.js";
 
 const OPEN = 1;
 const reservedApplicationTypes = new Set([
@@ -44,8 +44,8 @@ export class WebSocketNotificationClient {
     this.onNotification = options.onNotification ?? (() => {});
     this.onProtocolMessage = options.onProtocolMessage ?? (() => {});
     this.onError = options.onError ?? (() => {});
-    /** @type {Map<string, { kind: string, value: string }>} */
-    this.subscriptions = new Map();
+    /** @type {Set<string>} */
+    this.subscriptions = new Set();
     /** @type {WebSocket | null} */
     this.socket = null;
     /** @type {unknown | null} */
@@ -71,18 +71,16 @@ export class WebSocketNotificationClient {
     this.onState("disconnected");
   }
 
-  /** @param {"group" | "feed" | "eventType"} kind @param {string} value */
-  subscribe(kind, value) {
-    const subscription = { kind, value };
-    this.subscriptions.set(subscriptionKey(subscription), subscription);
-    this.send({ type: "subscribe", requestId: crypto.randomUUID(), ...subscription });
+  /** @param {string} subscription */
+  subscribe(subscription) {
+    this.subscriptions.add(subscription);
+    this.send({ type: "subscribe", requestId: crypto.randomUUID(), subscriptions: [subscription] });
   }
 
-  /** @param {"group" | "feed" | "eventType"} kind @param {string} value */
-  unsubscribe(kind, value) {
-    const subscription = { kind, value };
-    this.subscriptions.delete(subscriptionKey(subscription));
-    this.send({ type: "unsubscribe", requestId: crypto.randomUUID(), ...subscription });
+  /** @param {string} subscription */
+  unsubscribe(subscription) {
+    this.subscriptions.delete(subscription);
+    this.send({ type: "unsubscribe", requestId: crypto.randomUUID(), subscriptions: [subscription] });
   }
 
   /** @param {{ type: string, [key: string]: unknown }} message */
@@ -93,9 +91,10 @@ export class WebSocketNotificationClient {
     this.send(message);
   }
 
+  /** @returns {string[]} */
   getSubscriptions() {
     // Return a snapshot so callers cannot mutate the replay set without using the API.
-    return [...this.subscriptions.values()];
+    return [...this.subscriptions];
   }
 
   openSocket() {
@@ -107,8 +106,8 @@ export class WebSocketNotificationClient {
       this.reconnectHandle = null;
       this.onState("connected");
       // Subscriptions live only in host memory, so every new transport must recreate them.
-      for (const subscription of this.subscriptions.values()) {
-        this.send({ type: "subscribe", requestId: crypto.randomUUID(), ...subscription });
+      for (const subscription of this.subscriptions) {
+        this.send({ type: "subscribe", requestId: crypto.randomUUID(), subscriptions: [subscription] });
       }
     };
     socket.onmessage = (event) => this.handleMessage(String(event.data));

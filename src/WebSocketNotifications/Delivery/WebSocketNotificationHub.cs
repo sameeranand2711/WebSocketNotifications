@@ -38,14 +38,14 @@ public sealed class WebSocketNotificationHub
     /// <param name="subscription">The subscription to add.</param>
     /// <returns><see langword="true"/> when the registry changed; otherwise <see langword="false"/>.</returns>
     /// <remarks>This programmatic API trusts the caller and does not invoke <c>ISubscriptionAuthorizer</c>.</remarks>
-    public bool Subscribe(string connectionId, NotificationSubscription subscription)
+    public bool Subscribe(string connectionId, string subscription)
         => registry.AddSubscription(connectionId, subscription);
 
     /// <summary>Removes a subscription from one connection.</summary>
     /// <param name="connectionId">The live connection identifier.</param>
     /// <param name="subscription">The subscription to remove.</param>
     /// <returns><see langword="true"/> when the registry changed; otherwise <see langword="false"/>.</returns>
-    public bool Unsubscribe(string connectionId, NotificationSubscription subscription)
+    public bool Unsubscribe(string connectionId, string subscription)
         => registry.RemoveSubscription(connectionId, subscription);
 
     /// <summary>Adds a subscription to every current connection for a user.</summary>
@@ -53,10 +53,10 @@ public sealed class WebSocketNotificationHub
     /// <param name="subscription">The subscription to add.</param>
     /// <returns>The number of live connection records changed.</returns>
     /// <remarks>Connections opened after this call are not affected.</remarks>
-    public int SubscribeUserConnections(string userId, NotificationSubscription subscription)
+    public int SubscribeUserConnections(string userId, string subscription)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
-        ArgumentNullException.ThrowIfNull(subscription);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subscription);
 
         var changed = 0;
         foreach (var connectionId in registry.GetConnectionIdsForUser(userId))
@@ -82,10 +82,10 @@ public sealed class WebSocketNotificationHub
     /// <param name="subscription">The subscription to remove.</param>
     /// <returns>The number of live connection records changed.</returns>
     /// <remarks>Connections opened after this call are not affected.</remarks>
-    public int UnsubscribeUserConnections(string userId, NotificationSubscription subscription)
+    public int UnsubscribeUserConnections(string userId, string subscription)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
-        ArgumentNullException.ThrowIfNull(subscription);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subscription);
 
         var changed = 0;
         foreach (var connectionId in registry.GetConnectionIdsForUser(userId))

@@ -24,12 +24,3 @@ export function parseServerMessage(text) {
 
   return value;
 }
-
-/**
- * Builds the stable identity used to deduplicate subscriptions and replay them after reconnect.
- * @param {{ kind: string, value: string }} subscription
- * @returns {string}
- */
-export function subscriptionKey(subscription) {
-  return `${subscription.kind}:${subscription.value}`;
-}

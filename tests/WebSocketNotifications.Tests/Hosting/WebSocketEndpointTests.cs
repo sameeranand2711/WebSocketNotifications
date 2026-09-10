@@ -107,12 +107,12 @@ public sealed class WebSocketEndpointTests
     }
 
     [Fact]
-    public async Task Endpoint_AuthorizedGroupSubscriptionConfirmsAndReceivesNotification()
+    public async Task Endpoint_AuthorizedOpaqueSubscriptionConfirmsAndReceivesNotification()
     {
         using var server = CreateServer();
         using var socket = await ConnectAsync(server, "user-1");
         await socket.SendAsync(
-            """{"type":"subscribe","requestId":"r1","kind":"group","value":"operators"}"""u8.ToArray(),
+            """{"type":"subscribe","requestId":"r1","subscriptions":["tenant:abc:group:operators"]}"""u8.ToArray(),
             WebSocketMessageType.Text,
             endOfMessage: true,
             CancellationToken.None);
@@ -121,10 +121,10 @@ public sealed class WebSocketEndpointTests
         Assert.Equal("subscribed", confirmation.RootElement.GetProperty("type").GetString());
 
         await server.Services.GetRequiredService<WebSocketNotificationHub>().PublishAsync(
-            CreateNotification("group-message", groups: ["operators"]));
+            CreateNotification("subscription-message", subscriptions: ["tenant:abc:group:operators"]));
 
         using var notification = JsonDocument.Parse(await ReceiveTextAsync(socket));
-        Assert.Equal("group-message", notification.RootElement.GetProperty("messageId").GetString());
+        Assert.Equal("subscription-message", notification.RootElement.GetProperty("messageId").GetString());
         await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None);
     }
 
@@ -172,13 +172,13 @@ public sealed class WebSocketEndpointTests
     private static NotificationEnvelope CreateNotification(
         string messageId,
         IEnumerable<string>? userIds = null,
-        IEnumerable<string>? groups = null) =>
+        IEnumerable<string>? subscriptions = null) =>
         new(
             messageId,
             JsonSerializer.SerializeToElement(new { text = messageId }),
             DateTimeOffset.UtcNow,
             userIds: userIds,
-            groups: groups);
+            subscriptions: subscriptions);
 
     private static async Task<IReadOnlyList<string>> ReceiveMessageIdsAsync(WebSocket socket, int count)
     {

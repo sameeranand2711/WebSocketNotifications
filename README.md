@@ -7,7 +7,7 @@ WebSocket Notifications is a provider-neutral .NET 8 library for routing JSON no
 - Authenticated, configurable ASP.NET Core WebSocket endpoint
 - Application-defined user resolution and subscription authorization
 - Direct-user delivery to every active connection for that user
-- Group, feed, and event-type subscriptions
+- Opaque application-defined subscription keys
 - Programmatic subscription management through `WebSocketNotificationHub`
 - Provider-neutral `INotificationMessageSource` boundary
 - Bounded per-connection buffers with disconnect, drop-oldest, and drop-current policies
@@ -54,7 +54,7 @@ After packing locally:
 
 ```powershell
 dotnet pack src/WebSocketNotifications/WebSocketNotifications.csproj -c Release -o artifacts/packages
-dotnet add <your-project> package WebSocketNotifications --version 1.0.0-preview.1 --source artifacts/packages
+dotnet add <your-project> package WebSocketNotifications --version 1.0.0-rc.1 --source artifacts/packages
 ```
 
 During repository development, use a project reference:
@@ -103,9 +103,11 @@ The library uses standard .NET options and does not require `appsettings.json`. 
 
 `MapWebSocketNotifications()` applies `RequireAuthorization()`. The application configures its own authentication scheme; the library contains no JWT- or cookie-specific validation.
 
-After authentication, `IWebSocketUserResolver` derives the direct-routing user ID from the request. Clients cannot subscribe to arbitrary user IDs: the client protocol only permits group, feed, and event-type subscriptions. The sample's query-string identity is deliberately local-demo-only and must not be copied into production authentication.
+After authentication, `IWebSocketUserResolver` derives the direct-routing user ID from the request. Clients cannot add values to `UserIds`; the subscription protocol only manages opaque application-defined keys. The sample's query-string identity is deliberately local-demo-only and must not be copied into production authentication.
 
 `ISubscriptionAuthorizer` is invoked before every client subscribe request. The default implementation denies all subscriptions, so an application must opt in to the subscriptions it accepts.
+
+The library does not parse or assign meaning to subscription keys. Groups, feeds, events, roles, tenants, partners, channels, and markets are application concepts. Applications namespace and authorize keys as needed, for example `tenant:abc:group:premium` or `partner:p1:event:deposit.completed`. Direct `UserIds` remain separate because they are bound to authenticated identity rather than client-controlled subscriptions.
 
 ## Notification contract
 
@@ -122,9 +124,7 @@ var notification = new NotificationEnvelope(
     createdAt: DateTimeOffset.UtcNow,
     expiresAt: DateTimeOffset.UtcNow.AddMinutes(1),
     userIds: ["user-123"],
-    groups: ["operators"],
-    feeds: ["match-42"],
-    eventTypes: ["score.changed"]);
+    subscriptions: ["group:operators", "feed:match-42", "event:score.changed"]);
 ```
 
 At least one routing target is required. Timestamps must use UTC offset zero. A connection matching several routes receives one copy of the notification.
@@ -159,14 +159,14 @@ Applications can also inject `WebSocketNotificationHub` and call `PublishAsync` 
 
 ## Client protocol
 
-Subscribe and unsubscribe requests use group, feed, or event type values:
+Subscribe and unsubscribe requests carry one or more opaque keys:
 
 ```json
-{"type":"subscribe","requestId":"request-1","kind":"group","value":"operators"}
+{"type":"subscribe","requestId":"request-1","subscriptions":["group:operators","feed:match-42"]}
 ```
 
 ```json
-{"type":"unsubscribe","requestId":"request-2","kind":"group","value":"operators"}
+{"type":"unsubscribe","requestId":"request-2","subscriptions":["group:operators"]}
 ```
 
 Notifications use this server frame:
@@ -230,6 +230,8 @@ docker compose up -d --wait
 docker compose exec -T kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic notifications --partitions 3 --replication-factor 1
 ```
 
+The Compose health check waits for Kafka's consumer-group coordinator, so `--wait` does not return while direct-user delivery is still unavailable during broker startup.
+
 Run the host in one terminal:
 
 ```powershell
@@ -256,7 +258,7 @@ Open `http://localhost:5001/swagger` to inspect and invoke the producer endpoint
 Then publish a direct-user notification:
 
 ```powershell
-$body = @{ targets = @('user-1'); payload = @{ score = 7 } } | ConvertTo-Json -Depth 4
+$body = @{ users = @('user-1'); payload = @{ score = 7 } } | ConvertTo-Json -Depth 4
 Invoke-RestMethod -Method Post -Uri http://localhost:5001/api/notifications/users -ContentType application/json -Body $body
 ```
 

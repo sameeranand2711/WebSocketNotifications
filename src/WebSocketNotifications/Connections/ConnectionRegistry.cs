@@ -12,9 +12,9 @@ internal sealed class ConnectionRegistry
     private readonly object gate = new();
     private readonly Dictionary<string, ConnectionEntry> connections = new(StringComparer.Ordinal);
     private readonly Dictionary<string, HashSet<string>> connectionsByUser = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, HashSet<NotificationSubscription>> subscriptionsByConnection =
+    private readonly Dictionary<string, HashSet<string>> subscriptionsByConnection =
         new(StringComparer.Ordinal);
-    private readonly Dictionary<NotificationSubscription, HashSet<string>> connectionsBySubscription = [];
+    private readonly Dictionary<string, HashSet<string>> connectionsBySubscription = new(StringComparer.Ordinal);
 
     public int Count
     {
@@ -135,10 +135,10 @@ internal sealed class ConnectionRegistry
         }
     }
 
-    public bool AddSubscription(string connectionId, NotificationSubscription subscription)
+    public bool AddSubscription(string connectionId, string subscription)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionId);
-        ArgumentNullException.ThrowIfNull(subscription);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subscription);
 
         lock (gate)
         {
@@ -158,10 +158,10 @@ internal sealed class ConnectionRegistry
         }
     }
 
-    public bool RemoveSubscription(string connectionId, NotificationSubscription subscription)
+    public bool RemoveSubscription(string connectionId, string subscription)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionId);
-        ArgumentNullException.ThrowIfNull(subscription);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subscription);
 
         lock (gate)
         {
@@ -175,7 +175,7 @@ internal sealed class ConnectionRegistry
         }
     }
 
-    public IReadOnlyList<NotificationSubscription> GetSubscriptions(string connectionId)
+    public IReadOnlyList<string> GetSubscriptions(string connectionId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionId);
 
@@ -191,7 +191,7 @@ internal sealed class ConnectionRegistry
 
         lock (gate)
         {
-            // A connection can match several dimensions of the same notification. The set
+            // A connection can match several targets of the same notification. The set
             // guarantees that it receives only one copy from this routing operation.
             var recipients = new HashSet<string>(StringComparer.Ordinal);
 
@@ -203,35 +203,24 @@ internal sealed class ConnectionRegistry
                 }
             }
 
-            AddSubscriptionRecipients(recipients, SubscriptionKind.Group, notification.Groups);
-            AddSubscriptionRecipients(recipients, SubscriptionKind.Feed, notification.Feeds);
-            AddSubscriptionRecipients(recipients, SubscriptionKind.EventType, notification.EventTypes);
+            foreach (var subscription in notification.Subscriptions)
+            {
+                if (connectionsBySubscription.TryGetValue(subscription, out var subscribedConnections))
+                {
+                    recipients.UnionWith(subscribedConnections);
+                }
+            }
 
             return recipients.ToArray();
         }
     }
 
-    private HashSet<NotificationSubscription> GetSubscriptionsCore(string connectionId) =>
+    private HashSet<string> GetSubscriptionsCore(string connectionId) =>
         subscriptionsByConnection.TryGetValue(connectionId, out var subscriptions)
             ? subscriptions
             : throw new KeyNotFoundException($"Connection '{connectionId}' is not registered.");
 
-    private void AddSubscriptionRecipients(
-        HashSet<string> recipients,
-        SubscriptionKind kind,
-        IReadOnlyList<string> values)
-    {
-        foreach (var value in values)
-        {
-            var subscription = new NotificationSubscription(kind, value);
-            if (connectionsBySubscription.TryGetValue(subscription, out var subscribedConnections))
-            {
-                recipients.UnionWith(subscribedConnections);
-            }
-        }
-    }
-
-    private void RemoveFromSubscriptionIndex(string connectionId, NotificationSubscription subscription)
+    private void RemoveFromSubscriptionIndex(string connectionId, string subscription)
     {
         var subscribedConnections = connectionsBySubscription[subscription];
         subscribedConnections.Remove(connectionId);

@@ -21,19 +21,17 @@ public sealed class NotificationRouterTests
     }
 
     [Fact]
-    public void ResolveRecipients_MatchesGroupFeedAndEventTypeSubscriptions()
+    public void ResolveRecipients_MatchesOpaqueSubscriptionKeys()
     {
         var (registry, router) = CreateRouter();
-        AddSubscribedConnection(registry, "group-connection", SubscriptionKind.Group, "operators");
-        AddSubscribedConnection(registry, "feed-connection", SubscriptionKind.Feed, "match-42");
-        AddSubscribedConnection(registry, "event-connection", SubscriptionKind.EventType, "score.changed");
-        AddSubscribedConnection(registry, "other-connection", SubscriptionKind.Group, "customers");
+        AddSubscribedConnection(registry, "group-connection", "group:operators");
+        AddSubscribedConnection(registry, "feed-connection", "feed:match-42");
+        AddSubscribedConnection(registry, "event-connection", "tenant:abc:event:score.changed");
+        AddSubscribedConnection(registry, "other-connection", "group:customers");
 
         var recipients = router.ResolveRecipients(
             CreateNotification(
-                groups: ["operators"],
-                feeds: ["match-42"],
-                eventTypes: ["score.changed"]),
+                subscriptions: ["group:operators", "feed:match-42", "tenant:abc:event:score.changed"]),
             Now);
 
         Assert.Equal(
@@ -46,18 +44,13 @@ public sealed class NotificationRouterTests
     {
         var (registry, router) = CreateRouter();
         registry.Add("connection-1", "user-1");
-        registry.AddSubscription(
-            "connection-1",
-            new NotificationSubscription(SubscriptionKind.Group, "operators"));
-        registry.AddSubscription(
-            "connection-1",
-            new NotificationSubscription(SubscriptionKind.EventType, "score.changed"));
+        registry.AddSubscription("connection-1", "group:operators");
+        registry.AddSubscription("connection-1", "event:score.changed");
 
         var recipients = router.ResolveRecipients(
             CreateNotification(
                 userIds: ["user-1"],
-                groups: ["operators"],
-                eventTypes: ["score.changed"]),
+                subscriptions: ["group:operators", "event:score.changed"]),
             Now);
 
         Assert.Equal(["connection-1"], recipients);
@@ -67,9 +60,9 @@ public sealed class NotificationRouterTests
     public void ResolveRecipients_WhenNoRouteMatches_ReturnsEmptyCollection()
     {
         var (registry, router) = CreateRouter();
-        AddSubscribedConnection(registry, "connection-1", SubscriptionKind.Feed, "other-feed");
+        AddSubscribedConnection(registry, "connection-1", "feed:other");
 
-        var recipients = router.ResolveRecipients(CreateNotification(feeds: ["match-42"]), Now);
+        var recipients = router.ResolveRecipients(CreateNotification(subscriptions: ["feed:match-42"]), Now);
 
         Assert.Empty(recipients);
     }
@@ -96,18 +89,15 @@ public sealed class NotificationRouterTests
     private static void AddSubscribedConnection(
         ConnectionRegistry registry,
         string connectionId,
-        SubscriptionKind kind,
-        string value)
+        string subscription)
     {
         registry.Add(connectionId, $"user-{connectionId}");
-        registry.AddSubscription(connectionId, new NotificationSubscription(kind, value));
+        registry.AddSubscription(connectionId, subscription);
     }
 
     private static NotificationEnvelope CreateNotification(
         IEnumerable<string>? userIds = null,
-        IEnumerable<string>? groups = null,
-        IEnumerable<string>? feeds = null,
-        IEnumerable<string>? eventTypes = null,
+        IEnumerable<string>? subscriptions = null,
         DateTimeOffset? expiresAt = null) =>
         new(
             "message-1",
@@ -115,7 +105,5 @@ public sealed class NotificationRouterTests
             Now.AddMinutes(-1),
             expiresAt,
             userIds,
-            groups,
-            feeds,
-            eventTypes);
+            subscriptions);
 }

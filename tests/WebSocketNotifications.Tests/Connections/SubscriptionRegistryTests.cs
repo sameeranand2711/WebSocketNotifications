@@ -5,34 +5,35 @@ namespace WebSocketNotifications.Tests.Connections;
 public sealed class SubscriptionRegistryTests
 {
     [Fact]
-    public void NotificationSubscription_WhenValueOrKindIsInvalid_RejectsIt()
+    public void AddSubscription_WhenKeyIsBlank_RejectsIt()
     {
-        Assert.Throws<ArgumentException>(() => new NotificationSubscription(SubscriptionKind.Group, " "));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new NotificationSubscription((SubscriptionKind)99, "value"));
+        var registry = CreateRegistry();
+
+        Assert.Throws<ArgumentException>(() => registry.AddSubscription("connection-1", " "));
     }
 
     [Fact]
-    public void AddSubscription_WhenConnectionHasMultipleKinds_TracksAllSubscriptions()
+    public void AddSubscription_WhenConnectionHasSeveralOpaqueKeys_TracksAllSubscriptions()
     {
         var registry = CreateRegistry();
-        var group = new NotificationSubscription(SubscriptionKind.Group, "operators");
-        var feed = new NotificationSubscription(SubscriptionKind.Feed, "match-42");
-        var eventType = new NotificationSubscription(SubscriptionKind.EventType, "score.changed");
+        const string group = "group:operators";
+        const string feed = "feed:match-42";
+        const string tenantEvent = "tenant:abc:event:score.changed";
 
         Assert.True(registry.AddSubscription("connection-1", group));
         Assert.True(registry.AddSubscription("connection-1", feed));
-        Assert.True(registry.AddSubscription("connection-1", eventType));
+        Assert.True(registry.AddSubscription("connection-1", tenantEvent));
 
         Assert.Equal(
-            [feed, group, eventType],
-            registry.GetSubscriptions("connection-1").OrderBy(subscription => subscription.Value));
+            [feed, group, tenantEvent],
+            registry.GetSubscriptions("connection-1").Order());
     }
 
     [Fact]
     public void AddSubscription_WhenAlreadyPresent_IsIdempotent()
     {
         var registry = CreateRegistry();
-        var subscription = new NotificationSubscription(SubscriptionKind.Group, "operators");
+        const string subscription = "group:operators";
 
         Assert.True(registry.AddSubscription("connection-1", subscription));
         Assert.False(registry.AddSubscription("connection-1", subscription));
@@ -43,8 +44,8 @@ public sealed class SubscriptionRegistryTests
     public void RemoveSubscription_RemovesOnlyRequestedSubscription()
     {
         var registry = CreateRegistry();
-        var group = new NotificationSubscription(SubscriptionKind.Group, "operators");
-        var feed = new NotificationSubscription(SubscriptionKind.Feed, "match-42");
+        const string group = "group:operators";
+        const string feed = "feed:match-42";
         registry.AddSubscription("connection-1", group);
         registry.AddSubscription("connection-1", feed);
 
@@ -57,9 +58,7 @@ public sealed class SubscriptionRegistryTests
     public void Remove_WhenConnectionCloses_RemovesAllSubscriptions()
     {
         var registry = CreateRegistry();
-        registry.AddSubscription(
-            "connection-1",
-            new NotificationSubscription(SubscriptionKind.Group, "operators"));
+        registry.AddSubscription("connection-1", "group:operators");
 
         registry.Remove("connection-1");
 
@@ -70,7 +69,7 @@ public sealed class SubscriptionRegistryTests
     public void SubscriptionOperations_WhenConnectionDoesNotExist_RejectUnknownConnection()
     {
         var registry = new ConnectionRegistry();
-        var subscription = new NotificationSubscription(SubscriptionKind.Group, "operators");
+        const string subscription = "group:operators";
 
         Assert.Throws<KeyNotFoundException>(() => registry.AddSubscription("missing", subscription));
         Assert.Throws<KeyNotFoundException>(() => registry.RemoveSubscription("missing", subscription));

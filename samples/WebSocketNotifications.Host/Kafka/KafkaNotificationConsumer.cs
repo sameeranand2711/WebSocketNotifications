@@ -27,9 +27,7 @@ internal sealed class KafkaNotificationConsumer(KafkaNotificationMessageSource s
     private sealed record QueuedNotification(
         string MessageId,
         string[]? UserIds,
-        string[]? Groups,
-        string[]? Feeds,
-        string[]? EventTypes,
+        string[]? Subscriptions,
         JsonElement Payload,
         DateTimeOffset CreatedAt,
         DateTimeOffset? ExpiresAt)
@@ -41,8 +39,6 @@ internal sealed class KafkaNotificationConsumer(KafkaNotificationMessageSource s
                 CreatedAt,
                 ExpiresAt,
                 UserIds,
-                Groups,
-                Feeds,
-                EventTypes);
+                Subscriptions);
     }
 }

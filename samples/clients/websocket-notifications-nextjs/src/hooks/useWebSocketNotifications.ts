@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { WebSocketNotificationClient } from "../lib/websocket/client.js";
 
-export type SubscriptionKind = "group" | "feed" | "eventType";
-type Subscription = { kind: SubscriptionKind; value: string };
 type ServerMessage = Record<string, unknown>;
 
 /**
@@ -14,7 +12,7 @@ export function useWebSocketNotifications(url: string) {
   const clientRef = useRef<WebSocketNotificationClient | null>(null);
   const [state, setState] = useState("disconnected");
   const [notifications, setNotifications] = useState<ServerMessage[]>([]);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [subscriptions, setSubscriptions] = useState<string[]>([]);
   const [log, setLog] = useState<string[]>([]);
 
   useEffect(() => {
@@ -45,13 +43,13 @@ export function useWebSocketNotifications(url: string) {
       notifications,
       subscriptions,
       log,
-      subscribe(kind: SubscriptionKind, value: string) {
-        clientRef.current?.subscribe(kind, value);
-        setSubscriptions(clientRef.current?.getSubscriptions() as Subscription[] ?? []);
+      subscribe(subscription: string) {
+        clientRef.current?.subscribe(subscription);
+        setSubscriptions(clientRef.current?.getSubscriptions() ?? []);
       },
-      unsubscribe(kind: SubscriptionKind, value: string) {
-        clientRef.current?.unsubscribe(kind, value);
-        setSubscriptions(clientRef.current?.getSubscriptions() as Subscription[] ?? []);
+      unsubscribe(subscription: string) {
+        clientRef.current?.unsubscribe(subscription);
+        setSubscriptions(clientRef.current?.getSubscriptions() ?? []);
       },
       clearNotifications() {
         setNotifications([]);

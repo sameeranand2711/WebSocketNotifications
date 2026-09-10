@@ -1,6 +1,6 @@
-# WebSocket Notifications 1.0.0-preview.1
+# WebSocket Notifications 1.0.0-rc.1
 
-WebSocket Notifications V1 provides a provider-neutral .NET 8 library for routing application notifications to authenticated WebSocket clients. It includes group/feed/event subscriptions, direct-user delivery, bounded slow-client handling, heartbeat and size controls, a KafkaHighThroughput host and producer Web API, and a reconnecting Next.js 16 sample client.
+WebSocket Notifications V1 provides a provider-neutral .NET 8 library for routing application notifications to authenticated WebSocket clients. It includes opaque application-defined subscriptions, authenticated direct-user delivery, bounded slow-client handling, heartbeat and size controls, a KafkaHighThroughput host and producer Web API, and a reconnecting Next.js 16 sample client.
 
 ## Try it
 
@@ -33,7 +33,7 @@ Final score: **94 / 100 — Strong V1**
 All mandatory release gates pass:
 
 - Release solution build succeeds with zero warnings and errors.
-- 105/105 .NET tests and 6/6 client tests pass with no skips.
+- 106/106 .NET tests and 6/6 client tests pass with no skips.
 - TypeScript checking and the optimized Next.js build pass.
 - The real producer → Kafka → hosted adapter → WebSocket → reusable Next.js client flow passes.
 - Core dependency, authentication, authorization, bounded-memory, ordering, expiry, size-limit, cancellation, configuration, and documentation gates pass.

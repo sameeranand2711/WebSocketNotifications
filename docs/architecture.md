@@ -15,7 +15,7 @@ The consuming application deserializes provider data into a `NotificationEnvelop
 
 ## Responsibilities
 
-- `WebSocketNotifications.Contracts` defines neutral notification and subscription values.
+- `WebSocketNotifications.Contracts` defines the neutral notification envelope.
 - `WebSocketNotifications.Abstractions` defines application/provider boundaries for message sources, identity, authorization, and inbound application messages.
 - `WebSocketNotifications.Configuration` owns public settings and validation.
 - `WebSocketNotifications.Connections` owns in-memory connection indexes, buffers, socket loops, heartbeats, and session cleanup.
@@ -39,13 +39,13 @@ Multiple connections can share one user ID. Direct-user notifications are routed
 
 ## Subscription lifecycle
 
-Group, feed, and event-type subscriptions are attached to a connection. A client subscribe request is authorized before mutation. Application code can also manage a particular connection or every current connection for a user through `WebSocketNotificationHub`. Subscriptions end on explicit removal or connection cleanup; there is no TTL in V1.
+Opaque string subscription keys are attached to a connection. The library neither parses prefixes nor assigns category semantics. A client subscribe request is authorized before mutation. Application code can also manage a particular connection or every current connection for a user through `WebSocketNotificationHub`. Subscriptions end on explicit removal or connection cleanup; there is no TTL in V1.
 
-Direct-user routing is not a subscription. It is derived only from the authenticated request, preventing a client from claiming another user ID through the protocol.
+Applications own key conventions and authorization, including tenant or partner namespacing such as `tenant:abc:group:premium`. Direct-user routing is not a subscription: `UserIds` are matched only against identity derived from the authenticated request, preventing a client from claiming another direct recipient through the protocol.
 
 ## Outbound flow
 
-Recipient dimensions are unioned and deduplicated. Expired notifications produce no recipients. The notification is serialized once, checked against the configured outbound limit, and offered to each buffer without awaiting network I/O. Buffer overflow follows the configured slow-client policy. Each connection's single sender preserves its buffer order and is the only code that calls `WebSocket.SendAsync` for that socket.
+Direct-user and generic-subscription matches are unioned and deduplicated. Expired notifications produce no recipients. The notification is serialized once, checked against the configured outbound limit, and offered to each buffer without awaiting network I/O. Buffer overflow follows the configured slow-client policy. Each connection's single sender preserves its buffer order and is the only code that calls `WebSocket.SendAsync` for that socket.
 
 ## Inbound flow
 

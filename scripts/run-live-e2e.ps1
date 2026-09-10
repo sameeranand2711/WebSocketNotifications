@@ -101,7 +101,7 @@ try {
 
     Start-Sleep -Seconds 1
     $requestBody = @{
-        targets = @($userId)
+        users = @($userId)
         payload = @{ text = 'Hello from Kafka' }
         key = "user:$userId"
     } | ConvertTo-Json -Depth 4

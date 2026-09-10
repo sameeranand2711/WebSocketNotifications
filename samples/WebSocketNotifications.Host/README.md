@@ -20,6 +20,8 @@ docker compose exec -T kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server l
 dotnet run --project samples/WebSocketNotifications.Host --urls http://localhost:5000
 ```
 
+The Compose health check waits for Kafka's consumer-group coordinator before reporting the broker healthy.
+
 The health response is at `http://localhost:5000/`. The default WebSocket endpoint is:
 
 ```text
@@ -31,7 +33,7 @@ The query-string authentication handler exists only to make the local sample run
 ## Application boundaries
 
 - `ClaimUserResolver` reads the authenticated name-identifier claim.
-- `SampleSubscriptionAuthorizer` permits sample group/feed/event subscriptions.
+- `SampleSubscriptionAuthorizer` permits every opaque subscription key for demonstration purposes.
 - `SampleInboundMessageHandler` demonstrates application-specific inbound handling without logging payload data.
 - `KafkaNotificationConsumer` owns Kafka JSON deserialization.
 - `KafkaNotificationMessageSource` is a bounded handoff into the neutral source interface.
@@ -54,3 +56,5 @@ dotnet run --project samples/WebSocketNotifications.Host
 Do not place broker credentials in committed settings. Use environment variables, user secrets, or an external secret provider.
 
 The consumer uses `OrderedByPartition`; no global ordering is claimed across Kafka partitions.
+
+The Kafka notification JSON contains `userIds` and `subscriptions`. Subscription strings are passed through unchanged; applications own naming and authorization conventions, including tenant or partner prefixes.

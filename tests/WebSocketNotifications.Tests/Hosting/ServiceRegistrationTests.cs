@@ -78,7 +78,7 @@ public sealed class ServiceRegistrationTests
             new SubscriptionAuthorizationContext(
                 "connection-1",
                 "user-1",
-                new NotificationSubscription(SubscriptionKind.Group, "operators")),
+                "group:operators"),
             CancellationToken.None);
 
         Assert.False(allowed);

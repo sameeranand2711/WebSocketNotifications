@@ -28,9 +28,7 @@ public sealed class SampleIntegrationTests
                 {
                   "messageId":"message-1",
                   "userIds":["user-1"],
-                  "groups":[],
-                  "feeds":[],
-                  "eventTypes":["score.changed"],
+                  "subscriptions":["tenant:abc:event:score.changed"],
                   "payload":{"score":7},
                   "createdAt":"2026-01-01T00:00:00Z"
                 }
@@ -40,6 +38,7 @@ public sealed class SampleIntegrationTests
         var notification = await handled.Task;
         Assert.Equal("message-1", notification.MessageId);
         Assert.Equal(["user-1"], notification.UserIds);
+        Assert.Equal(["tenant:abc:event:score.changed"], notification.Subscriptions);
         Assert.Equal(7, notification.Payload.GetProperty("score").GetInt32());
         await cancellation.CancelAsync();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sourceRun);

@@ -9,9 +9,7 @@ internal sealed record QueuedNotification(
     // The key controls Kafka partitioning but is transport metadata, not notification JSON.
     [property: JsonIgnore] string Key,
     string[] UserIds,
-    string[] Groups,
-    string[] Feeds,
-    string[] EventTypes,
+    string[] Subscriptions,
     JsonElement Payload,
     DateTimeOffset CreatedAt,
     DateTimeOffset? ExpiresAt);
