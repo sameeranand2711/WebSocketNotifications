@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Changed
+
+- Selected source-level fan-out as the stable V1 multi-server architecture: every active WebSocket server independently receives cluster-wide notifications and performs local in-memory routing.
+- Superseded the RC.1 single-server release assumption without adding distributed presence or server identity to the notification envelope.
+- Added the sequential V1 release-agent workflow and release checklist. Multi-server implementation and two-host proof remain required before RC.2.
+
 ## [1.0.0-rc.1] - 2026-09-09
 
 ### Added

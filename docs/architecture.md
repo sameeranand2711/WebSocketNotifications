@@ -4,14 +4,17 @@
 
 ```mermaid
 flowchart LR
-    A[Application message source] --> B[Notification processing]
-    B --> C[Recipient routing]
-    C --> D[Bounded connection buffer]
-    D --> E[Single send loop]
-    E --> F[WebSocket client]
+    A[Shared application message source] --> B[Server A source subscription]
+    A --> C[Server B source subscription]
+    B --> D[Server A local recipient routing]
+    C --> E[Server B local recipient routing]
+    D --> F[Bounded local connection buffers]
+    E --> G[Bounded local connection buffers]
+    F --> H[Server A WebSocket clients]
+    G --> I[Server B WebSocket clients]
 ```
 
-The consuming application deserializes provider data into a `NotificationEnvelope`. The core checks expiry, resolves the union of direct-user and subscription matches, serializes one JSON frame, and attempts a non-blocking write to each recipient's bounded buffer. One loop per connection drains that buffer into its WebSocket.
+Every active WebSocket server independently receives each cluster-wide notification from the shared source. On each server, the consuming application deserializes provider data into a `NotificationEnvelope`. The core checks expiry, resolves the union of local direct-user and subscription matches, serializes one JSON frame, and attempts a non-blocking write to each local recipient's bounded buffer. One loop per connection drains that buffer into its WebSocket.
 
 ## Responsibilities
 
@@ -23,7 +26,7 @@ The consuming application deserializes provider data into a `NotificationEnvelop
 - `WebSocketNotifications.Protocol` parses the V1 client control protocol.
 - `WebSocketNotifications.Hosting` supplies ASP.NET Core registration, endpoint mapping, and optional source-worker integration.
 
-Provider-specific queue logic stays outside the core. Kafka commit/retry, RabbitMQ ACK/NACK, deserialization, credentials, and connection management cannot leak into the notification library through `INotificationMessageSource`.
+Provider-specific queue logic stays outside the core. Kafka consumer-group fan-out, commit/retry, RabbitMQ queue/exchange topology and ACK/NACK, deserialization, credentials, and connection management cannot leak into the notification library through `INotificationMessageSource`.
 
 ## Connection lifecycle
 
@@ -55,6 +58,14 @@ The single receive loop assembles fragmented text messages within the inbound li
 
 Connection and subscription indexes share one short critical section; no network operation or application callback occurs while it is held. Recipient queries return snapshots. Per-connection channels are bounded and have one reader. Session lifetime owns cancellation, task observation, channel completion, and registry cleanup.
 
-## V1 deployment boundary
+## V1 multi-server deployment boundary
 
-V1 supports one WebSocket server instance. Connections and subscriptions are process-local, so another instance cannot resolve these recipients. A future distributed recipient resolver or backplane can be introduced between source processing and local routing, but V1 does not define or implement it and the neutral envelope contains no server identity.
+V1 uses source-level fan-out. Every simultaneously active WebSocket server independently receives each notification intended for cluster-wide delivery, then uses only its process-local connection and subscription indexes. A user or subscription may therefore match physical connections on several servers without any server resolving another server's state.
+
+For Kafka, active servers require independent consumer groups. A shared group is invalid for this topology because Kafka delivers each record to one member of that group. The group name is `{application}.{environment}.{instance-id}`, where `instance-id` is unique to one active process incarnation. A restarted process receives a new identity and new group configured to start at the live end, so records emitted while the old process was offline are not replayed. Old ephemeral group metadata is left to the broker's configured retention/cleanup policy. Other providers must supply equivalent independent live subscriptions, such as one queue per active server bound to a fan-out exchange.
+
+Server instance identity belongs to adapter/deployment configuration and never enters `NotificationEnvelope`. No Redis backplane, distributed presence registry, or targeted user/subscription-to-server resolution exists in V1.
+
+`WebSocketNotificationHub.PublishAsync` is intentionally process-local. Cluster-wide delivery must enter through the shared source. Source readiness means the provider subscription is established and able to receive new notifications before the server advertises readiness. A restarted server must not replay notifications emitted while it was offline because V1 provides live delivery rather than an offline inbox.
+
+The RC.1 Kafka sample does not yet meet this section: it uses a fixed group ID and lacks source-readiness and two-host proof. Those are implementation requirements for the multi-server fan-out stage before stable V1.

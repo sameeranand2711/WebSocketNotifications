@@ -34,12 +34,13 @@ correctness -> clarity -> simplicity -> testability -> performance -> extensibil
 ```
 
 - Add interfaces only at actual provider/application boundaries.
-- Avoid wrapper chains, speculative factories, generic pipelines, and distributed architecture in V1.
+- Avoid wrapper chains, speculative factories, generic pipelines, distributed presence, and targeted server-routing infrastructure in V1.
+- Preserve V1 source-level fan-out: every active server independently consumes cluster-wide notifications and performs local routing.
 - Prefer direct branches and small concrete collaborators.
 - Keep the public API small and treat it as compatibility-sensitive.
 - Do not add a broker dependency to the core project.
 
-The persistent detailed rules are in [`Agents/02-development-rules-agent.md`](../Agents/02-development-rules-agent.md).
+The persistent detailed rules are in [`Agents/02-development-rules-agent.md`](../Agents/02-development-rules-agent.md). The sequential stable-release workflow is controlled by [`Agents/11-v1-release-orchestration-agent.md`](../Agents/11-v1-release-orchestration-agent.md); every stage uses a dedicated branch and stops for human review after opening its PR.
 
 ## Async and resource rules
 

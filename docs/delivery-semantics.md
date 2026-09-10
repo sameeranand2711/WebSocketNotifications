@@ -17,7 +17,9 @@ This is a transport-side definition. It does not guarantee that:
 
 ## Publishing versus sending
 
-`WebSocketNotificationHub.PublishAsync` resolves current recipients, serializes the notification, enforces the outbound limit, and offers it to each bounded connection buffer. Completion means local routing acceptance, not completion of every subsequent socket send. The message-source handler has the same acceptance boundary.
+`WebSocketNotificationHub.PublishAsync` resolves current recipients, serializes the notification, enforces the outbound limit, and offers it to each bounded connection buffer. Completion means local routing acceptance, not completion of every subsequent socket send. It never publishes to another server.
+
+For cluster-wide delivery, the application publishes to the shared source. Every active WebSocket server independently receives the notification and its message-source handler applies the same local acceptance boundary. Source-level fan-out does not create a cross-server completion or acknowledgement guarantee.
 
 The connection's single sender later performs the actual send. A failed send terminates and cleans up that connection. The failure is observed by the connection lifetime but is not converted into a replay or provider-independent retry.
 
@@ -29,7 +31,7 @@ Applications that need confirmed processing can define an application-specific i
 
 ## Upstream duplicates and loss windows
 
-An at-least-once source may redeliver the same `MessageId`, and the core does not deduplicate it. Notifications published while a client is disconnected are not stored or replayed. Applications should make client handling idempotent where duplicate source delivery is possible.
+An at-least-once source may redeliver the same `MessageId`, and the core does not deduplicate it. Notifications published while a client or server is disconnected are not stored or replayed. A restarted server must not treat its source subscription as an offline inbox. Applications should make client handling idempotent where duplicate source delivery is possible.
 
 ## Slow-client outcomes
 

@@ -25,3 +25,7 @@ Kafka does not define a relative global order across different partitions or unr
 ## Multiple clients
 
 Each connection has its own buffer and sender. Two connections for the same user receive direct notifications in source-routing order, but their network completion times are independent. No ordering guarantee compares delivery completion across clients.
+
+## Multiple servers
+
+Each server receives the shared source through an independent subscription and preserves the ordering supplied to that subscription. For Kafka, independent consumer groups can observe and complete processing at different wall-clock times even when each group preserves partition order. V1 makes no global ordering or simultaneous-delivery guarantee across servers.

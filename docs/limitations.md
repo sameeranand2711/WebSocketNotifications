@@ -2,11 +2,10 @@
 
 V1 deliberately has a narrow operational model:
 
-- One WebSocket server instance
-- In-memory connection and subscription tracking
-- No distributed recipient resolution
-- No Redis or other backplane
-- No cross-server presence or routing
+- Multi-server delivery uses all-node source-level fan-out
+- In-memory, process-local connection and subscription tracking
+- No distributed presence or targeted recipient-to-server resolution
+- No Redis or targeted-routing backplane
 - No multi-region coordination
 - No replay
 - No durable offline notification store
@@ -21,7 +20,11 @@ V1 deliberately has a narrow operational model:
 
 ## Consequences
 
-Scaling the sample host to independent replicas would produce incomplete routing because each replica knows only its own sockets. Do not deploy multiple active instances behind a load balancer and assume direct or subscription notifications will reach every connection.
+Every active WebSocket server must independently receive every cluster-wide notification. For Kafka, use an independent consumer group per simultaneously active server. A shared group load-balances each record to one server and produces incomplete routing because that server knows only its own sockets.
+
+All-node fan-out repeats source consumption and local match work on every server. V1 does not optimize this with distributed presence or targeted per-server inboxes. If measured fan-out cost is unacceptable for the declared operating envelope, stable V1 must stop rather than silently claim scale-out readiness.
+
+The RC.1 Kafka sample still uses a fixed shared group and is not scale-out ready. Stable V1 requires the Stage 13 implementation and real two-host E2E proof.
 
 Clients may miss notifications during disconnection and must resubscribe after reconnect. The Next.js sample does this automatically but cannot recover messages published while it was offline.
 
@@ -33,4 +36,4 @@ The absence of a tenant or partner model does not prevent namespaced identities 
 
 ## Deferred roadmap areas
 
-A future version may define a distributed recipient resolver/backplane, tenant-aware subscription scopes, replay or offline storage, optional acknowledgement helpers, binary negotiation, subscription expiry, or multi-region routing. None of these is partially implemented or promised by V1.
+A future version may define distributed presence and targeted per-server inboxes as an alternative to fan-out, tenant-aware subscription scopes, replay or offline storage, optional acknowledgement helpers, binary negotiation, subscription expiry, or multi-region routing. None of these is partially implemented or promised by V1.

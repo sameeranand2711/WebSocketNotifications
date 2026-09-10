@@ -1,6 +1,6 @@
 # WebSocket Notifications
 
-WebSocket Notifications is a provider-neutral .NET 8 library for routing JSON notifications from an application-owned message source to authenticated ASP.NET Core WebSocket clients. V1 uses one server instance with in-memory connection and subscription state.
+WebSocket Notifications is a provider-neutral .NET library for routing JSON notifications from an application-owned message source to authenticated ASP.NET Core WebSocket clients. Stable V1 uses source-level fan-out across WebSocket servers while keeping connection and subscription state local to each process.
 
 ## V1 capabilities
 
@@ -10,6 +10,7 @@ WebSocket Notifications is a provider-neutral .NET 8 library for routing JSON no
 - Opaque application-defined subscription keys
 - Programmatic subscription management through `WebSocketNotificationHub`
 - Provider-neutral `INotificationMessageSource` boundary
+- Multi-server source-level fan-out: every active server independently receives each cluster-wide notification and performs local routing
 - Bounded per-connection buffers with disconnect, drop-oldest, and drop-current policies
 - One send loop and one receive loop per connection
 - Application-level heartbeat, optional WebSocket compression, and message-size limits
@@ -18,27 +19,21 @@ WebSocket Notifications is a provider-neutral .NET 8 library for routing JSON no
 - KafkaHighThroughput host and multi-endpoint producer Web API samples
 - Reconnecting Next.js client with automatic resubscription
 
-V1 intentionally does not provide distributed connection state, replay, durable offline delivery, built-in acknowledgements, WebSocket retries, exactly-once delivery, binary messages, tenant scopes, subscription TTLs, or multi-region routing. See [V1 limitations](docs/limitations.md).
+V1 intentionally does not provide distributed presence or targeted server resolution, replay, durable offline delivery, built-in acknowledgements, WebSocket retries, exactly-once delivery, binary messages, tenant scopes, subscription TTLs, or multi-region routing. See [V1 limitations](docs/limitations.md).
 
 ## Architecture
 
 ```text
-Application message source (Kafka sample, RabbitMQ adapter, etc.)
-                         |
-                         v
-                 NotificationEnvelope
-                         |
-                         v
-             in-memory recipient routing
-                         |
-                         v
-           bounded per-connection buffer
-                         |
-                         v
-            one WebSocket send loop/client
+Shared application message source
+        |
+        +-- WebSocket server A -> local routing -> local clients
+        +-- WebSocket server B -> local routing -> local clients
+        +-- WebSocket server C -> local routing -> local clients
 ```
 
-The core package contains no Kafka, RabbitMQ, Redis, or other broker dependency. Provider-specific deserialization, acknowledgement, retry, and commit behavior remains in the consuming application. See [architecture](docs/architecture.md) and [message sources](docs/message-source.md).
+Each active server must have an independent source subscription. For Kafka, simultaneously active servers must use independent consumer groups; members of one shared group load-balance records and do not provide fan-out. The V1 group identity is namespaced by application and environment and includes an identity unique to the active process incarnation. A restart uses a new group and begins at the live end rather than replaying the offline interval. The core package contains no Kafka, RabbitMQ, Redis, or other broker dependency. Provider-specific fan-out, deserialization, acknowledgement, retry, and commit behavior remains in the consuming application. See [architecture](docs/architecture.md) and [message sources](docs/message-source.md).
+
+> **RC.1 implementation status:** the merged RC.1 Kafka sample still has one fixed consumer group and has not passed the required two-host fan-out E2E scenario. It is not yet scale-out ready. The stable V1 requirement is fixed here; implementation and proof belong to the next release stage. Track the remaining work in the [V1 release checklist](docs/v1-release-checklist.md).
 
 ## Requirements
 
@@ -155,7 +150,7 @@ builder.Services.AddSingleton<INotificationMessageSource, ApplicationNotificatio
 
 The callback completion means the notification has been validated, routed, and accepted by the applicable bounded connection buffers. It is not a client acknowledgement. An individual WebSocket delivery is successful only after that connection's send operation completes. See [delivery semantics](docs/delivery-semantics.md).
 
-Applications can also inject `WebSocketNotificationHub` and call `PublishAsync` directly.
+Applications can also inject `WebSocketNotificationHub` and call `PublishAsync` directly. That method intentionally routes only within the current process. Applications requiring cluster-wide delivery must publish through the shared fan-out source.
 
 ## Client protocol
 
@@ -299,4 +294,4 @@ The repository contains one core library, one behavior-oriented xUnit project, t
 
 ## Roadmap
 
-Potential post-V1 work includes a distributed recipient-resolution/backplane design, tenant-aware scopes, replay or durable offline storage, optional application acknowledgement helpers, binary protocol negotiation, subscription TTLs, and multi-region routing. These are roadmap items, not current capabilities.
+Potential post-V1 work includes distributed presence and targeted per-server inboxes as an alternative to all-node fan-out, tenant-aware scopes, replay or durable offline storage, optional application acknowledgement helpers, binary protocol negotiation, subscription TTLs, and multi-region routing. These are roadmap items, not current capabilities.

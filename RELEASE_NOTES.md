@@ -1,5 +1,7 @@
 # WebSocket Notifications 1.0.0-rc.1
 
+> These notes describe the historical RC.1 artifact. After RC.1, stable V1 selected source-level multi-server fan-out. RC.1 still uses a fixed Kafka consumer group and is not scale-out ready; implementation and two-host proof are required for RC.2.
+
 WebSocket Notifications V1 provides a provider-neutral .NET 8 library for routing application notifications to authenticated WebSocket clients. It includes opaque application-defined subscriptions, authenticated direct-user delivery, bounded slow-client handling, heartbeat and size controls, a KafkaHighThroughput host and producer Web API, and a reconnecting Next.js 16 sample client.
 
 ## Try it
@@ -38,4 +40,4 @@ All mandatory release gates pass:
 - The real producer → Kafka → hosted adapter → WebSocket → reusable Next.js client flow passes.
 - Core dependency, authentication, authorization, bounded-memory, ordering, expiry, size-limit, cancellation, configuration, and documentation gates pass.
 
-The principal residual risks are the intentionally single-instance design, lack of a published sustained-load benchmark, and the absence of application acknowledgement/replay semantics.
+The principal RC.1 residual risks are its single-instance sample configuration, lack of a published sustained-load benchmark, and the absence of application acknowledgement/replay semantics.

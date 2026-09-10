@@ -14,9 +14,19 @@ Subscriptions are opaque string keys rather than library-defined group, feed, or
 
 Direct `UserIds` remain separate because direct routing is derived from authenticated identity and cannot be changed through client subscription commands. The pre-V1 category-specific `NotificationSubscription` and `SubscriptionKind` types were removed rather than deprecated.
 
-## Single server for V1
+## Single server for V1 (superseded)
 
-Connections and subscriptions are indexed in memory for a simple, predictable first release. No Redis backplane, server IDs, distributed presence, or partial multi-server protocol was added. A future distributed resolver can precede local routing without changing the neutral envelope.
+RC.1 originally limited V1 to one server with in-memory connection and subscription indexes. The indexes remain local, but the one-server release decision was superseded after identifying that a shared queue consumer group could send a notification to a server with no matching local connection.
+
+## Source-level fan-out for stable V1
+
+Every active WebSocket server independently receives each cluster-wide notification and performs local routing. Kafka-backed servers use independent consumer groups; other providers supply equivalent independent subscriptions. This supports connections for the same user or subscription across several servers without distributed presence.
+
+Kafka groups are namespaced by application and environment and contain an instance ID unique to the active process incarnation. Restarting creates a new group that begins at the live end, preserving V1's explicit no-replay behavior. Broker retention cleans obsolete ephemeral group metadata.
+
+Server identity remains adapter/deployment metadata and is not added to `NotificationEnvelope`. `WebSocketNotificationHub.PublishAsync` remains local, while cluster-wide delivery uses the shared source. V1 remains live and non-durable, so restarted servers do not replay notifications emitted while offline.
+
+Distributed presence and targeted per-server delivery remain possible future optimizations if measured fan-out cost requires them; Redis is not introduced speculatively.
 
 ## Bounded per-connection buffers
 

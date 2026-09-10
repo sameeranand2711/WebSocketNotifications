@@ -15,6 +15,16 @@ The library accepts zero or one registered source. Zero allows direct publishing
 
 The neutral envelope contains only direct `UserIds` and opaque `Subscriptions`. An adapter passes subscription strings through unchanged; the consuming application owns meanings and namespaces such as groups, events, roles, tenants, or partners.
 
+## Multi-server fan-out
+
+For cluster-wide publishing, every active WebSocket server must have an independent subscription to the shared source and receive every notification. Each server then resolves recipients only from its local in-memory registry. For Kafka, this requires an independent consumer group per simultaneously active server. A shared group load-balances records and can route a notification to a server with no matching local connection.
+
+Kafka group identity follows `{application}.{environment}.{instance-id}`. The instance ID belongs to one active process incarnation, so a restart creates a new group. A previously unseen group starts at the live end and does not consume the offline interval; old ephemeral group metadata follows the broker's retention policy. This is intentional because V1 has no replay or offline inbox.
+
+Equivalent provider topologies are application-owned. For example, RabbitMQ can use one queue per active server bound to a fan-out exchange. The core library neither configures those providers nor carries server identity in the notification envelope.
+
+`WebSocketNotificationHub.PublishAsync` bypasses the source and is therefore local to its process. Use the shared source for cluster-wide delivery.
+
 ## Library responsibility
 
 - Accept a neutral `NotificationEnvelope`
@@ -50,3 +60,7 @@ A RabbitMQ adapter could deserialize a delivery, await the neutral handler, and 
 ## Cancellation and failure
 
 `RunAsync` should remain active until its cancellation token is signaled. It must pass cancellation to provider I/O and the handler. Non-cancellation failures should escape the method so the .NET host observes the background-service failure. The sample's bounded bridge propagates handler failures back to the Kafka consumer callback.
+
+An active server must report source readiness only after it can receive new provider records. Because V1 has no replay or offline inbox, a restarted server must begin live consumption without replaying notifications emitted while it was offline. Exact provider offset/start-position mechanics remain the adapter's responsibility and must be documented and tested.
+
+The RC.1 Kafka sample still uses one fixed group ID and does not yet expose source readiness; it is the known implementation gap addressed by the next V1 release stage.
