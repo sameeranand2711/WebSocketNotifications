@@ -80,6 +80,109 @@ public sealed class ProtocolProcessorTests
     }
 
     [Fact]
+    public async Task ProcessAsync_WhenSubscribeReachesLimitExactly_AddsWholeBatch()
+    {
+        var (registry, outgoing, processor) = CreateProcessor(
+            new RecordingAuthorizer(allowed: true),
+            maxSubscriptions: 2);
+
+        await processor.ProcessAsync(
+            "connection-1",
+            "user-1",
+            Json("""{"type":"subscribe","requestId":"limit","subscriptions":["first","second"]}"""),
+            outgoing,
+            CancellationToken.None);
+
+        Assert.Equal(["first", "second"], registry.GetSubscriptions("connection-1").Order());
+        AssertResponse(outgoing, "subscribed", "limit");
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WhenSubscribeExceedsLimit_RejectsBatchAtomically()
+    {
+        var authorizer = new RecordingAuthorizer(allowed: true);
+        var (registry, outgoing, processor) = CreateProcessor(
+            authorizer,
+            maxSubscriptions: 2);
+
+        await processor.ProcessAsync(
+            "connection-1",
+            "user-1",
+            Json("""{"type":"subscribe","requestId":"over-limit","subscriptions":["first","second","third"]}"""),
+            outgoing,
+            CancellationToken.None);
+
+        Assert.Empty(registry.GetSubscriptions("connection-1"));
+        Assert.Equal(3, authorizer.Contexts.Count);
+        AssertError(outgoing, "over-limit", "subscription_limit_exceeded");
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WhenExistingSubscriptionIsRepeated_DuplicateDoesNotConsumeQuota()
+    {
+        var (registry, outgoing, processor) = CreateProcessor(
+            new RecordingAuthorizer(allowed: true),
+            maxSubscriptions: 2);
+        registry.AddSubscription("connection-1", "existing");
+
+        await processor.ProcessAsync(
+            "connection-1",
+            "user-1",
+            Json("""{"type":"subscribe","requestId":"duplicate","subscriptions":["existing","new"]}"""),
+            outgoing,
+            CancellationToken.None);
+
+        Assert.Equal(["existing", "new"], registry.GetSubscriptions("connection-1").Order());
+        AssertResponse(outgoing, "subscribed", "duplicate");
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WhenAnySubscriptionKeyIsTooLong_RejectsBatchBeforeAuthorization()
+    {
+        var authorizer = new RecordingAuthorizer(allowed: true);
+        var (registry, outgoing, processor) = CreateProcessor(
+            authorizer,
+            maxKeyLength: 5);
+
+        await processor.ProcessAsync(
+            "connection-1",
+            "user-1",
+            Json("""{"type":"subscribe","requestId":"key-length","subscriptions":["12345","123456"]}"""),
+            outgoing,
+            CancellationToken.None);
+
+        Assert.Empty(registry.GetSubscriptions("connection-1"));
+        Assert.Empty(authorizer.Contexts);
+        AssertError(outgoing, "key-length", "subscription_key_too_long");
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WhenUnsubscribeFreesQuota_AllowsResubscribe()
+    {
+        var (registry, outgoing, processor) = CreateProcessor(
+            new RecordingAuthorizer(allowed: true),
+            maxSubscriptions: 1);
+        registry.AddSubscription("connection-1", "first");
+
+        await processor.ProcessAsync(
+            "connection-1",
+            "user-1",
+            Json("""{"type":"unsubscribe","requestId":"remove","subscriptions":["first"]}"""),
+            outgoing,
+            CancellationToken.None);
+        AssertResponse(outgoing, "unsubscribed", "remove");
+        await processor.ProcessAsync(
+            "connection-1",
+            "user-1",
+            Json("""{"type":"subscribe","requestId":"replace","subscriptions":["second"]}"""),
+            outgoing,
+            CancellationToken.None);
+
+        Assert.Equal(["second"], registry.GetSubscriptions("connection-1"));
+        AssertResponse(outgoing, "subscribed", "replace");
+    }
+
+    [Fact]
     public async Task ProcessAsync_WhenUnsubscribing_RemovesSubscriptionWithoutAuthorization()
     {
         var authorizer = new RecordingAuthorizer(allowed: false);
@@ -113,6 +216,42 @@ public sealed class ProtocolProcessorTests
 
         Assert.Empty(registry.GetSubscriptions("connection-1"));
         AssertError(outgoing, "r4", "invalid_subscription");
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WhenBatchMixesValidAndBlankKeys_RejectsBeforeAuthorization()
+    {
+        var authorizer = new RecordingAuthorizer(allowed: true);
+        var (registry, outgoing, processor) = CreateProcessor(authorizer);
+
+        await processor.ProcessAsync(
+            "connection-1",
+            "user-1",
+            Json("""{"type":"subscribe","requestId":"mixed","subscriptions":["valid"," "]}"""),
+            outgoing,
+            CancellationToken.None);
+
+        Assert.Empty(registry.GetSubscriptions("connection-1"));
+        Assert.Empty(authorizer.Contexts);
+        AssertError(outgoing, "mixed", "invalid_subscription");
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WhenUnsubscribeKeyIsTooLong_RejectsCommand()
+    {
+        var (registry, outgoing, processor) = CreateProcessor(
+            new RecordingAuthorizer(allowed: true),
+            maxKeyLength: 5);
+
+        await processor.ProcessAsync(
+            "connection-1",
+            "user-1",
+            Json("""{"type":"unsubscribe","requestId":"long-remove","subscriptions":["123456"]}"""),
+            outgoing,
+            CancellationToken.None);
+
+        Assert.Empty(registry.GetSubscriptions("connection-1"));
+        AssertError(outgoing, "long-remove", "subscription_key_too_long");
     }
 
     [Fact]
@@ -166,9 +305,11 @@ public sealed class ProtocolProcessorTests
     private static (ConnectionRegistry Registry, ConnectionBuffer Outgoing, ProtocolProcessor Processor)
         CreateProcessor(
             ISubscriptionAuthorizer authorizer,
-            IWebSocketInboundMessageHandler? handler = null)
+            IWebSocketInboundMessageHandler? handler = null,
+            int maxSubscriptions = 128,
+            int maxKeyLength = 256)
     {
-        var registry = new ConnectionRegistry();
+        var registry = new ConnectionRegistry(maxSubscriptions, maxKeyLength);
         registry.Add("connection-1", "user-1");
         var outgoing = new ConnectionBuffer(8, SlowClientPolicy.Disconnect);
         return (registry, outgoing, new ProtocolProcessor(registry, authorizer, handler));

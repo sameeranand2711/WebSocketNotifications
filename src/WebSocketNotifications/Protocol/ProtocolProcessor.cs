@@ -121,6 +121,11 @@ internal sealed class ProtocolProcessor(
             return;
         }
 
+        if (RejectOverlongSubscription(connectionId, subscriptions, requestId, outgoing))
+        {
+            return;
+        }
+
         // Authorize the complete request before mutating the registry so a denied key cannot
         // leave an earlier key from the same command partially subscribed.
         foreach (var subscription in subscriptions)
@@ -138,9 +143,27 @@ internal sealed class ProtocolProcessor(
             }
         }
 
-        foreach (var subscription in subscriptions)
+        var result = registry.AddSubscriptions(connectionId, subscriptions);
+        if (result == SubscriptionAddResult.LimitExceeded)
         {
-            registry.AddSubscription(connectionId, subscription);
+            EnqueueError(
+                connectionId,
+                outgoing,
+                requestId,
+                "subscription_limit_exceeded",
+                "The connection subscription limit would be exceeded.");
+            return;
+        }
+
+        if (result == SubscriptionAddResult.KeyTooLong)
+        {
+            EnqueueError(
+                connectionId,
+                outgoing,
+                requestId,
+                "subscription_key_too_long",
+                $"A subscription exceeds MaxSubscriptionKeyLength ({registry.MaxSubscriptionKeyLength}).");
+            return;
         }
 
         Enqueue(connectionId, outgoing, new ProtocolResponse("subscribed", requestId));
@@ -163,12 +186,37 @@ internal sealed class ProtocolProcessor(
             return;
         }
 
+        if (RejectOverlongSubscription(connectionId, subscriptions, requestId, outgoing))
+        {
+            return;
+        }
+
         foreach (var subscription in subscriptions)
         {
             registry.RemoveSubscription(connectionId, subscription);
         }
 
         Enqueue(connectionId, outgoing, new ProtocolResponse("unsubscribed", requestId));
+    }
+
+    private bool RejectOverlongSubscription(
+        string connectionId,
+        IReadOnlyList<string> subscriptions,
+        string? requestId,
+        ConnectionBuffer outgoing)
+    {
+        if (!subscriptions.Any(subscription => subscription.Length > registry.MaxSubscriptionKeyLength))
+        {
+            return false;
+        }
+
+        EnqueueError(
+            connectionId,
+            outgoing,
+            requestId,
+            "subscription_key_too_long",
+            $"A subscription exceeds MaxSubscriptionKeyLength ({registry.MaxSubscriptionKeyLength}).");
+        return true;
     }
 
     private void EnqueueError(

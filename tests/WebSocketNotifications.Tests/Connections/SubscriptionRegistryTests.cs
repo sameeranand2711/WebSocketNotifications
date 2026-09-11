@@ -41,6 +41,46 @@ public sealed class SubscriptionRegistryTests
     }
 
     [Fact]
+    public void AddSubscription_AtConnectionLimit_RejectsOnlyNewKeys()
+    {
+        var registry = CreateRegistry(maxSubscriptions: 2);
+        registry.AddSubscription("connection-1", "first");
+        registry.AddSubscription("connection-1", "second");
+
+        Assert.False(registry.AddSubscription("connection-1", "second"));
+        var error = Assert.Throws<InvalidOperationException>(
+            () => registry.AddSubscription("connection-1", "third"));
+
+        Assert.Contains("MaxSubscriptionsPerConnection", error.Message, StringComparison.Ordinal);
+        Assert.Equal(["first", "second"], registry.GetSubscriptions("connection-1").Order());
+    }
+
+    [Fact]
+    public void AddSubscription_EnforcesKeyLengthInclusively()
+    {
+        var registry = CreateRegistry(maxKeyLength: 5);
+
+        Assert.True(registry.AddSubscription("connection-1", "12345"));
+        var error = Assert.Throws<ArgumentException>(
+            () => registry.AddSubscription("connection-1", "123456"));
+
+        Assert.Contains("MaxSubscriptionKeyLength", error.Message, StringComparison.Ordinal);
+        Assert.Equal(["12345"], registry.GetSubscriptions("connection-1"));
+    }
+
+    [Fact]
+    public void RemoveSubscription_ReleasesConnectionQuota()
+    {
+        var registry = CreateRegistry(maxSubscriptions: 1);
+        registry.AddSubscription("connection-1", "first");
+
+        Assert.True(registry.RemoveSubscription("connection-1", "first"));
+        Assert.True(registry.AddSubscription("connection-1", "second"));
+
+        Assert.Equal(["second"], registry.GetSubscriptions("connection-1"));
+    }
+
+    [Fact]
     public void RemoveSubscription_RemovesOnlyRequestedSubscription()
     {
         var registry = CreateRegistry();
@@ -76,9 +116,11 @@ public sealed class SubscriptionRegistryTests
         Assert.Throws<KeyNotFoundException>(() => registry.GetSubscriptions("missing"));
     }
 
-    private static ConnectionRegistry CreateRegistry()
+    private static ConnectionRegistry CreateRegistry(
+        int maxSubscriptions = 128,
+        int maxKeyLength = 256)
     {
-        var registry = new ConnectionRegistry();
+        var registry = new ConnectionRegistry(maxSubscriptions, maxKeyLength);
         registry.Add("connection-1", "user-1");
         return registry;
     }

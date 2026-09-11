@@ -52,7 +52,13 @@ public static class WebSocketNotificationServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IValidateOptions<WebSocketNotificationOptions>,
                 WebSocketNotificationOptionsValidator>());
-        services.TryAddSingleton<ConnectionRegistry>();
+        services.TryAddSingleton(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<WebSocketNotificationOptions>>().Value;
+            return new ConnectionRegistry(
+                options.MaxSubscriptionsPerConnection,
+                options.MaxSubscriptionKeyLength);
+        });
         services.TryAddSingleton<NotificationRouter>();
         services.TryAddSingleton(serviceProvider =>
         {

@@ -16,7 +16,7 @@ Clients cannot modify direct `UserIds`. Direct-user delivery always uses the res
 {"type":"subscribe","requestId":"request-1","subscriptions":["group:operators","feed:football"]}
 ```
 
-`subscriptions` must be a non-empty array of nonblank strings. Duplicate keys in one command are processed once. `requestId` is optional but recommended for correlating responses. The application authorizer receives each opaque key, and all keys are authorized before any are added.
+`subscriptions` must be a non-empty array of nonblank strings no longer than `MaxSubscriptionKeyLength`. Duplicate keys in one command are processed once and existing duplicates do not consume quota. `requestId` is optional but recommended for correlating responses. The application authorizer receives each opaque key, and all keys are authorized before the complete batch is added atomically.
 
 The library does not interpret prefixes. Values such as `group:operators`, `role:admin`, `tenant:abc:group:premium`, and `partner:p1:event:deposit.completed` are conventions owned entirely by the consuming application.
 
@@ -39,13 +39,25 @@ Denied:
 
 Invalid subscription fields use code `invalid_subscription`.
 
+An overlong key is rejected before authorization or mutation:
+
+```json
+{"type":"error","requestId":"request-1","code":"subscription_key_too_long","message":"A subscription exceeds MaxSubscriptionKeyLength (256)."}
+```
+
+If the unique new keys would exceed `MaxSubscriptionsPerConnection`, authorization completes but the entire command is rejected without partial mutation:
+
+```json
+{"type":"error","requestId":"request-1","code":"subscription_limit_exceeded","message":"The connection subscription limit would be exceeded."}
+```
+
 ## Unsubscribe
 
 ```json
 {"type":"unsubscribe","requestId":"request-2","subscriptions":["feed:match-42"]}
 ```
 
-The operation is idempotent for the current connection and returns:
+The operation is idempotent for the current connection. Overlong keys receive `subscription_key_too_long`; valid removals release quota and return:
 
 ```json
 {"type":"unsubscribed","requestId":"request-2"}

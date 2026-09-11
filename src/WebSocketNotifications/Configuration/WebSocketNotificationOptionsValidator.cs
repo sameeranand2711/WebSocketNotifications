@@ -7,6 +7,8 @@ internal sealed class WebSocketNotificationOptionsValidator : IValidateOptions<W
     internal const int AbsoluteMaxIncomingMessageSize = 1024 * 1024;
     internal const int AbsoluteMaxOutgoingMessageSize = 4 * 1024 * 1024;
     internal const int AbsoluteMaxOutgoingBufferCapacity = 10_000;
+    internal const int AbsoluteMaxSubscriptionsPerConnection = 10_000;
+    internal const int AbsoluteMaxSubscriptionKeyLength = 4_096;
 
     private static readonly TimeSpan MaximumHeartbeatDuration = TimeSpan.FromHours(1);
 
@@ -54,6 +56,16 @@ internal sealed class WebSocketNotificationOptionsValidator : IValidateOptions<W
             nameof(options.OutgoingBufferCapacity),
             options.OutgoingBufferCapacity,
             AbsoluteMaxOutgoingBufferCapacity);
+        AddRangeFailureIfInvalid(
+            failures,
+            nameof(options.MaxSubscriptionsPerConnection),
+            options.MaxSubscriptionsPerConnection,
+            AbsoluteMaxSubscriptionsPerConnection);
+        AddRangeFailureIfInvalid(
+            failures,
+            nameof(options.MaxSubscriptionKeyLength),
+            options.MaxSubscriptionKeyLength,
+            AbsoluteMaxSubscriptionKeyLength);
 
         if (!Enum.IsDefined(options.SlowClientPolicy))
         {

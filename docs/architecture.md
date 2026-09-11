@@ -42,7 +42,7 @@ Multiple connections can share one user ID. Direct-user notifications are routed
 
 ## Subscription lifecycle
 
-Opaque string subscription keys are attached to a connection. The library neither parses prefixes nor assigns category semantics. A client subscribe request is authorized before mutation. Application code can also manage a particular connection or every current connection for a user through `WebSocketNotificationHub`. Subscriptions end on explicit removal or connection cleanup; there is no TTL in V1.
+Opaque string subscription keys are attached to a connection. The library neither parses prefixes nor assigns category semantics. Key length and unique keys per connection are bounded by configuration. A client subscribe batch is validated and fully authorized before one atomic registry mutation. Application code can also manage a particular connection or every current connection for a user through `WebSocketNotificationHub`. Subscriptions end on explicit removal or connection cleanup; there is no TTL in V1.
 
 Applications own key conventions and authorization, including tenant or partner namespacing such as `tenant:abc:group:premium`. Direct-user routing is not a subscription: `UserIds` are matched only against identity derived from the authenticated request, preventing a client from claiming another direct recipient through the protocol.
 

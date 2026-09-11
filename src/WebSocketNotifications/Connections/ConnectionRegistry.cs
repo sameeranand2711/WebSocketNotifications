@@ -1,4 +1,5 @@
 using WebSocketNotifications.Contracts;
+using WebSocketNotifications.Configuration;
 
 namespace WebSocketNotifications.Connections;
 
@@ -15,6 +16,20 @@ internal sealed class ConnectionRegistry
     private readonly Dictionary<string, HashSet<string>> subscriptionsByConnection =
         new(StringComparer.Ordinal);
     private readonly Dictionary<string, HashSet<string>> connectionsBySubscription = new(StringComparer.Ordinal);
+    private readonly int maxSubscriptionsPerConnection;
+    private readonly int maxSubscriptionKeyLength;
+
+    internal int MaxSubscriptionKeyLength => maxSubscriptionKeyLength;
+
+    public ConnectionRegistry(
+        int maxSubscriptionsPerConnection = WebSocketNotificationOptions.DefaultMaxSubscriptionsPerConnection,
+        int maxSubscriptionKeyLength = WebSocketNotificationOptions.DefaultMaxSubscriptionKeyLength)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxSubscriptionsPerConnection, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxSubscriptionKeyLength, 1);
+        this.maxSubscriptionsPerConnection = maxSubscriptionsPerConnection;
+        this.maxSubscriptionKeyLength = maxSubscriptionKeyLength;
+    }
 
     public int Count
     {
@@ -140,21 +155,68 @@ internal sealed class ConnectionRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(subscription);
 
+        return AddSubscriptions(connectionId, [subscription]) switch
+        {
+            SubscriptionAddResult.Added => true,
+            SubscriptionAddResult.Unchanged => false,
+            SubscriptionAddResult.KeyTooLong => throw new ArgumentException(
+                $"Subscription exceeds MaxSubscriptionKeyLength ({maxSubscriptionKeyLength}).",
+                nameof(subscription)),
+            SubscriptionAddResult.LimitExceeded => throw new InvalidOperationException(
+                $"Connection has reached MaxSubscriptionsPerConnection ({maxSubscriptionsPerConnection})."),
+            _ => throw new InvalidOperationException("Unsupported subscription result."),
+        };
+    }
+
+    internal SubscriptionAddResult AddSubscriptions(
+        string connectionId,
+        IReadOnlyList<string> subscriptions)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionId);
+        ArgumentNullException.ThrowIfNull(subscriptions);
+
         lock (gate)
         {
-            if (!GetSubscriptionsCore(connectionId).Add(subscription))
+            var current = GetSubscriptionsCore(connectionId);
+            var additions = new List<string>(subscriptions.Count);
+            var unique = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var subscription in subscriptions)
             {
-                return false;
+                ArgumentException.ThrowIfNullOrWhiteSpace(subscription);
+                if (subscription.Length > maxSubscriptionKeyLength)
+                {
+                    return SubscriptionAddResult.KeyTooLong;
+                }
+
+                if (!current.Contains(subscription) && unique.Add(subscription))
+                {
+                    additions.Add(subscription);
+                }
             }
 
-            if (!connectionsBySubscription.TryGetValue(subscription, out var subscribedConnections))
+            if (additions.Count == 0)
             {
-                subscribedConnections = new HashSet<string>(StringComparer.Ordinal);
-                connectionsBySubscription.Add(subscription, subscribedConnections);
+                return SubscriptionAddResult.Unchanged;
             }
 
-            subscribedConnections.Add(connectionId);
-            return true;
+            if (additions.Count > maxSubscriptionsPerConnection - current.Count)
+            {
+                return SubscriptionAddResult.LimitExceeded;
+            }
+
+            foreach (var subscription in additions)
+            {
+                current.Add(subscription);
+                if (!connectionsBySubscription.TryGetValue(subscription, out var subscribedConnections))
+                {
+                    subscribedConnections = new HashSet<string>(StringComparer.Ordinal);
+                    connectionsBySubscription.Add(subscription, subscribedConnections);
+                }
+
+                subscribedConnections.Add(connectionId);
+            }
+
+            return SubscriptionAddResult.Added;
         }
     }
 
@@ -231,4 +293,12 @@ internal sealed class ConnectionRegistry
     }
 
     private sealed record ConnectionEntry(string UserId, ConnectionBuffer? Buffer, Action? RequestStop);
+}
+
+internal enum SubscriptionAddResult
+{
+    Unchanged,
+    Added,
+    LimitExceeded,
+    KeyTooLong,
 }

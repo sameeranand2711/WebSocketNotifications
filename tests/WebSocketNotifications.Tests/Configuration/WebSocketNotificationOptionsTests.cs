@@ -18,6 +18,8 @@ public sealed class WebSocketNotificationOptionsTests
         Assert.Equal(64 * 1024, options.MaxIncomingMessageSize);
         Assert.Equal(256 * 1024, options.MaxOutgoingMessageSize);
         Assert.Equal(128, options.OutgoingBufferCapacity);
+        Assert.Equal(128, options.MaxSubscriptionsPerConnection);
+        Assert.Equal(256, options.MaxSubscriptionKeyLength);
         Assert.Equal(SlowClientPolicy.Disconnect, options.SlowClientPolicy);
         AssertValidationSucceeds(options);
     }
@@ -84,6 +86,40 @@ public sealed class WebSocketNotificationOptionsTests
 
         AssertValidationFails(options, nameof(options.OutgoingBufferCapacity));
         Assert.Equal(capacity, options.OutgoingBufferCapacity);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(10001)]
+    public void Validation_WhenSubscriptionLimitIsOutsideHardBounds_RejectsValue(int limit)
+    {
+        var options = new WebSocketNotificationOptions { MaxSubscriptionsPerConnection = limit };
+
+        AssertValidationFails(options, nameof(options.MaxSubscriptionsPerConnection));
+        Assert.Equal(limit, options.MaxSubscriptionsPerConnection);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(4097)]
+    public void Validation_WhenSubscriptionKeyLimitIsOutsideHardBounds_RejectsValue(int limit)
+    {
+        var options = new WebSocketNotificationOptions { MaxSubscriptionKeyLength = limit };
+
+        AssertValidationFails(options, nameof(options.MaxSubscriptionKeyLength));
+        Assert.Equal(limit, options.MaxSubscriptionKeyLength);
+    }
+
+    [Fact]
+    public void Validation_AtSubscriptionHardCeilings_Succeeds()
+    {
+        var options = new WebSocketNotificationOptions
+        {
+            MaxSubscriptionsPerConnection = 10_000,
+            MaxSubscriptionKeyLength = 4_096,
+        };
+
+        AssertValidationSucceeds(options);
     }
 
     [Fact]
