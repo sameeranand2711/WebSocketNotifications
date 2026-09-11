@@ -67,6 +67,27 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
+    public void AddWebSocketNotifications_AppliesConfiguredSubscriptionLimitsToRegistry()
+    {
+        var services = new ServiceCollection();
+        services.AddWebSocketNotifications(options =>
+        {
+            options.MaxSubscriptionsPerConnection = 2;
+            options.MaxSubscriptionKeyLength = 5;
+        });
+        using var provider = services.BuildServiceProvider();
+        var registry = provider.GetRequiredService<ConnectionRegistry>();
+        registry.Add("connection-1", "user-1");
+        registry.AddSubscription("connection-1", "first");
+        registry.AddSubscription("connection-1", "other");
+
+        Assert.Throws<InvalidOperationException>(
+            () => registry.AddSubscription("connection-1", "third"));
+        Assert.Throws<ArgumentException>(
+            () => registry.AddSubscription("connection-1", "123456"));
+    }
+
+    [Fact]
     public async Task AddWebSocketNotifications_WithoutApplicationAuthorizer_UsesSecureDefault()
     {
         var services = new ServiceCollection();

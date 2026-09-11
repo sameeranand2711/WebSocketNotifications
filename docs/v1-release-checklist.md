@@ -95,16 +95,16 @@ Done when the tests fail with the old shared-consumer-group configuration and pa
 
 ### 4. Add subscription resource limits
 
-The outgoing queue is bounded, but an authenticated client can currently accumulate subscription entries through repeated commands.
+Subscription state is now bounded per connection, complementing the existing bounded outgoing queue.
 
-- [ ] Add a configurable maximum number of subscriptions per connection.
-- [ ] Add a configurable maximum subscription-key length.
-- [ ] Decide whether a separate maximum number of keys per subscribe/unsubscribe command is useful in addition to the existing inbound-message-size limit.
-- [ ] Validate all new settings and define conservative defaults and absolute ceilings.
-- [ ] Reject over-limit commands atomically without partially modifying registry state.
-- [ ] Verify duplicate subscriptions do not consume additional quota.
-- [ ] Verify unsubscribe and connection cleanup release all associated state.
-- [ ] Document the protocol error and configuration behavior.
+- [x] Add a configurable maximum number of subscriptions per connection.
+- [x] Add a configurable maximum subscription-key length.
+- [x] Decide whether a separate maximum number of keys per subscribe/unsubscribe command is useful in addition to the existing inbound-message-size limit. It is not added because the inbound byte limit bounds parsing and the connection quota bounds state growth.
+- [x] Validate all new settings and define conservative defaults and absolute ceilings.
+- [x] Reject over-limit commands atomically without partially modifying registry state.
+- [x] Verify duplicate subscriptions do not consume additional quota.
+- [x] Verify unsubscribe and connection cleanup release all associated state.
+- [x] Document the protocol error and configuration behavior.
 
 Done when one client cannot grow connection/subscription memory without a configured bound.
 

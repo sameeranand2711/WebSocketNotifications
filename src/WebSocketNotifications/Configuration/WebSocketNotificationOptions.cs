@@ -3,6 +3,9 @@ namespace WebSocketNotifications.Configuration;
 /// <summary>Configures the WebSocket notification subsystem.</summary>
 public sealed class WebSocketNotificationOptions
 {
+    internal const int DefaultMaxSubscriptionsPerConnection = 128;
+    internal const int DefaultMaxSubscriptionKeyLength = 256;
+
     /// <summary>Gets the conventional configuration section name.</summary>
     public const string SectionName = "WebSocketNotifications";
 
@@ -29,6 +32,12 @@ public sealed class WebSocketNotificationOptions
 
     /// <summary>Gets or sets the bounded outgoing notification capacity per connection. The default is 128.</summary>
     public int OutgoingBufferCapacity { get; set; } = 128;
+
+    /// <summary>Gets or sets the maximum subscriptions held by one connection. The default is 128.</summary>
+    public int MaxSubscriptionsPerConnection { get; set; } = DefaultMaxSubscriptionsPerConnection;
+
+    /// <summary>Gets or sets the maximum length of one subscription key. The default is 256 characters.</summary>
+    public int MaxSubscriptionKeyLength { get; set; } = DefaultMaxSubscriptionKeyLength;
 
     /// <summary>Gets or sets the full-buffer behavior.</summary>
     public SlowClientPolicy SlowClientPolicy { get; set; }

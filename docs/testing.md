@@ -61,7 +61,7 @@ On success the runner removes its processes, topic, Kafka container, and per-run
 
 ## Current release evidence
 
-- 118 .NET tests passing with no skips
+- 135 .NET tests passing with no skips
 - 6 Node tests passing
 - Strict TypeScript check passing
 - Next.js optimized production build passing

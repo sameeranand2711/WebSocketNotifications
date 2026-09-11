@@ -86,6 +86,8 @@ builder.Services.AddWebSocketNotifications(options =>
 {
     options.EndpointPath = "/ws/notifications";
     options.OutgoingBufferCapacity = 256;
+    options.MaxSubscriptionsPerConnection = 128;
+    options.MaxSubscriptionKeyLength = 256;
     options.SlowClientPolicy = SlowClientPolicy.Disconnect;
 });
 ```
@@ -189,6 +191,8 @@ See [protocol reference](docs/protocol.md) for confirmations, errors, heartbeat 
     "MaxIncomingMessageSize": 65536,
     "MaxOutgoingMessageSize": 262144,
     "OutgoingBufferCapacity": 128,
+    "MaxSubscriptionsPerConnection": 128,
+    "MaxSubscriptionKeyLength": 256,
     "SlowClientPolicy": "Disconnect"
   }
 }

@@ -23,6 +23,22 @@ public sealed class WebSocketNotificationHubTests
     }
 
     [Fact]
+    public void Subscribe_EnforcesConfiguredConnectionAndKeyLimits()
+    {
+        var registry = new ConnectionRegistry(
+            maxSubscriptionsPerConnection: 1,
+            maxSubscriptionKeyLength: 5);
+        registry.Add("connection-1", "user-1");
+        var hub = CreateHub(registry);
+
+        Assert.True(hub.Subscribe("connection-1", "first"));
+        Assert.Throws<InvalidOperationException>(
+            () => hub.Subscribe("connection-1", "other"));
+        Assert.Throws<ArgumentException>(
+            () => hub.Subscribe("connection-1", "123456"));
+    }
+
+    [Fact]
     public void SubscribeUserConnections_AppliesToAllCurrentConnectionsOnly()
     {
         var registry = new ConnectionRegistry();

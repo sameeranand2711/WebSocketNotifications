@@ -37,6 +37,8 @@ public sealed class WebSocketNotificationHub
     /// <param name="connectionId">The live connection identifier.</param>
     /// <param name="subscription">The subscription to add.</param>
     /// <returns><see langword="true"/> when the registry changed; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentException">The subscription is blank or exceeds the configured key length.</exception>
+    /// <exception cref="InvalidOperationException">The connection has reached its configured subscription limit.</exception>
     /// <remarks>This programmatic API trusts the caller and does not invoke <c>ISubscriptionAuthorizer</c>.</remarks>
     public bool Subscribe(string connectionId, string subscription)
         => registry.AddSubscription(connectionId, subscription);
@@ -52,6 +54,8 @@ public sealed class WebSocketNotificationHub
     /// <param name="userId">The application user identifier.</param>
     /// <param name="subscription">The subscription to add.</param>
     /// <returns>The number of live connection records changed.</returns>
+    /// <exception cref="ArgumentException">The subscription is blank or exceeds the configured key length.</exception>
+    /// <exception cref="InvalidOperationException">A current connection has reached its configured subscription limit.</exception>
     /// <remarks>Connections opened after this call are not affected.</remarks>
     public int SubscribeUserConnections(string userId, string subscription)
     {

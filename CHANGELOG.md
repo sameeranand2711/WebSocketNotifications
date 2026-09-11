@@ -11,6 +11,8 @@ All notable changes to this project are documented here.
 - Added per-process Kafka consumer groups named `{application}.{environment}.{instance-id}` with an explicit instance override and an ephemeral startup identity fallback.
 - Changed the hosted Kafka sample to start unseen groups at the live end and expose assignment-aware source readiness at `/health/ready`.
 - Added deterministic real-Kafka proof of the shared-group failure mode, independent two-host fan-out, continued delivery after one host stops, and no replay after restart.
+- Bounded per-connection subscription count and subscription-key length with validated defaults and hard ceilings.
+- Added atomic subscription-batch rejection with `subscription_limit_exceeded` and `subscription_key_too_long` protocol errors.
 - Added the sequential cumulative V1 release-agent workflow and release checklist.
 
 ## [1.0.0-rc.1] - 2026-09-09
