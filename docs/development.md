@@ -70,7 +70,7 @@ npm run typecheck
 npm run build
 ```
 
-Run `scripts/run-live-e2e.ps1` for changes to serialization, queue adapters, configuration, hosting, WebSocket behavior, or the client.
+Run `scripts/run-multi-host-e2e.ps1` for changes to serialization, queue adapters, source identity/readiness, hosting, WebSocket behavior, or the client.
 
 ## Review and scoring
 

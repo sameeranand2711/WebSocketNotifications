@@ -8,7 +8,10 @@ All notable changes to this project are documented here.
 
 - Selected source-level fan-out as the stable V1 multi-server architecture: every active WebSocket server independently receives cluster-wide notifications and performs local in-memory routing.
 - Superseded the RC.1 single-server release assumption without adding distributed presence or server identity to the notification envelope.
-- Added the sequential V1 release-agent workflow and release checklist. Multi-server implementation and two-host proof remain required before RC.2.
+- Added per-process Kafka consumer groups named `{application}.{environment}.{instance-id}` with an explicit instance override and an ephemeral startup identity fallback.
+- Changed the hosted Kafka sample to start unseen groups at the live end and expose assignment-aware source readiness at `/health/ready`.
+- Added deterministic real-Kafka proof of the shared-group failure mode, independent two-host fan-out, continued delivery after one host stops, and no replay after restart.
+- Added the sequential cumulative V1 release-agent workflow and release checklist.
 
 ## [1.0.0-rc.1] - 2026-09-09
 

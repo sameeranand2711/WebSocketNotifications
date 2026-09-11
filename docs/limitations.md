@@ -24,8 +24,6 @@ Every active WebSocket server must independently receive every cluster-wide noti
 
 All-node fan-out repeats source consumption and local match work on every server. V1 does not optimize this with distributed presence or targeted per-server inboxes. If measured fan-out cost is unacceptable for the declared operating envelope, stable V1 must stop rather than silently claim scale-out readiness.
 
-The RC.1 Kafka sample still uses a fixed shared group and is not scale-out ready. Stable V1 requires the Stage 13 implementation and real two-host E2E proof.
-
 Clients may miss notifications during disconnection and must resubscribe after reconnect. The Next.js sample does this automatically but cannot recover messages published while it was offline.
 
 An upstream at-least-once provider can create duplicate `MessageId` values at clients. Applications should make processing idempotent where necessary.

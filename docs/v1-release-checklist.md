@@ -66,14 +66,14 @@ Done when there is one non-contradictory V1 requirement across the agent files, 
 
 ### 2. Implement Kafka fan-out in the hosted sample
 
-- [ ] Give every concurrently running host instance a unique consumer group ID.
-- [ ] Introduce an explicit deployment/instance identity configuration mechanism. Generate an ephemeral identity only when that behavior is documented and appropriate for the sample.
-- [ ] Namespace group IDs by application and environment to prevent unrelated deployments from consuming each other's records.
-- [ ] Remove the fixed `websocket-notification-host` group ID as the scalable default.
-- [ ] Choose offset initialization and restart behavior that do not imply offline replay.
-- [ ] Ensure the source is consuming before the host reports readiness.
-- [ ] Keep Kafka configuration and implementation in the sample adapter; do not add a Kafka dependency to the core package.
-- [ ] Document equivalent semantics for other providers: one independent subscription per WebSocket server, such as a queue per server bound to a fan-out exchange.
+- [x] Give every concurrently running host instance a unique consumer group ID.
+- [x] Introduce an explicit deployment/instance identity configuration mechanism. Generate an ephemeral identity only when that behavior is documented and appropriate for the sample.
+- [x] Namespace group IDs by application and environment to prevent unrelated deployments from consuming each other's records.
+- [x] Remove the fixed `websocket-notification-host` group ID as the scalable default.
+- [x] Choose offset initialization and restart behavior that do not imply offline replay.
+- [x] Ensure the source is consuming before the host reports readiness.
+- [x] Keep Kafka configuration and implementation in the sample adapter; do not add a Kafka dependency to the core package.
+- [x] Document equivalent semantics for other providers: one independent subscription per WebSocket server, such as a queue per server bound to a fan-out exchange.
 
 Done when two host instances can run concurrently and one produced notification is independently processed by both instances.
 
@@ -81,15 +81,15 @@ Done when two host instances can run concurrently and one produced notification 
 
 Implement the change in cohesive failing slices and keep each slice green before starting the next one.
 
-- [ ] Test two servers with the same user connected to both; each connection receives one copy.
-- [ ] Test users connected to different servers; each user receives the intended notification.
-- [ ] Test the same subscription on different servers; matching connections on both receive it.
-- [ ] Test a notification matching both a user's identity and a subscription; each physical connection receives only one copy.
-- [ ] Test that a server with no matching local connection performs no WebSocket send.
-- [ ] Test one server stopping or disconnecting without preventing delivery on another server.
-- [ ] Test server restart behavior and confirm that V1 does not unexpectedly replay notifications published while that server was offline.
-- [ ] Add a real Kafka two-host end-to-end scenario, not only mocked or in-memory tests.
-- [ ] Make the multi-host E2E runner deterministic, self-cleaning, and suitable for local and CI execution.
+- [x] Test two servers with the same user connected to both; each connection receives one copy.
+- [x] Test users connected to different servers; each user receives the intended notification.
+- [x] Test the same subscription on different servers; matching connections on both receive it.
+- [x] Test a notification matching both a user's identity and a subscription; each physical connection receives only one copy.
+- [x] Test that a server with no matching local connection performs no WebSocket send.
+- [x] Test one server stopping or disconnecting without preventing delivery on another server.
+- [x] Test server restart behavior and confirm that V1 does not unexpectedly replay notifications published while that server was offline.
+- [x] Add a real Kafka two-host end-to-end scenario, not only mocked or in-memory tests.
+- [x] Make the multi-host E2E runner deterministic, self-cleaning, and suitable for local and CI execution.
 
 Done when the tests fail with the old shared-consumer-group configuration and pass with independent per-server consumption.
 
