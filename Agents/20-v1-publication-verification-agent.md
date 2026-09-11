@@ -11,11 +11,10 @@ These rules apply throughout the V1 release workflow.
 - Read and obey the existing repository governance under `Agents/01-*.md` through `Agents/09-*.md` where applicable.
 - Keep execution strictly sequential unless an agent explicitly identifies a safe, isolated subtask.
 - Never begin the next V1 release stage until the current stage has produced all required outputs and reached PASS.
-- Every implementation, fix, hotfix, refactor, release-engineering change, or documentation change must occur on a newly created and checked-out dedicated branch.
+- Every change occurs on a dedicated publication branch created only after the approved cumulative RC.2 PR has landed on `main`.
 - Never work directly on `main`.
-- After a stage passes, create a pull/merge request targeting `main`.
-- Never auto-merge. Human review decides whether to merge.
-- When resuming after a human merge, first update local `main`, verify the previous stage landed, then create the next branch from the updated `main`.
+- Never auto-merge publication changes. Human review and protected release controls remain mandatory.
+- When resuming, update `main` and verify the approved cumulative candidate landed before creating the publication branch.
 - Use TDD for behavior changes: cohesive failing tests first, minimal coherent implementation second, refactor while green.
 - Preserve `UserIds` and `Subscriptions` as the only core routing inputs.
 - Subscription keys remain opaque and application-defined.
