@@ -50,7 +50,7 @@ try {
     $ready = $false
     for ($attempt = 0; $attempt -lt 60; $attempt++) {
         try {
-            $response = Invoke-WebRequest -Uri $baseUrl -UseBasicParsing -TimeoutSec 1
+            $response = Invoke-WebRequest -Uri "$baseUrl/health/ready" -UseBasicParsing -TimeoutSec 1
             if ($response.StatusCode -eq 200) {
                 $ready = $true
                 break

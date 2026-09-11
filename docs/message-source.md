@@ -51,7 +51,7 @@ An individual connection's successful delivery is defined separately: its `WebSo
 
 The hosted sample implements a bounded adapter channel. `KafkaNotificationConsumer` deserializes the Kafka value using web JSON naming, converts it to `NotificationEnvelope`, and awaits `KafkaNotificationMessageSource.SubmitAsync`. The source worker awaits core routing before the adapter completes the Kafka handler.
 
-The sample configures ordered-by-partition consumption. Kafka connection, retry, poison-message, and commit behavior belongs to KafkaHighThroughput and its sample configuration. No Kafka type exists in the core project.
+The sample configures ordered-by-partition consumption. At startup it creates an independent `{application}.{environment}.{instance-id}` group, enforces `AutoOffsetReset=Latest`, and uses KafkaHighThroughput's assignment-aware consumer health for `/health/ready`. Kafka connection, retry, poison-message, health, and commit behavior belongs to KafkaHighThroughput and its sample configuration. No Kafka type exists in the core project.
 
 ## Other providers
 
@@ -61,6 +61,4 @@ A RabbitMQ adapter could deserialize a delivery, await the neutral handler, and 
 
 `RunAsync` should remain active until its cancellation token is signaled. It must pass cancellation to provider I/O and the handler. Non-cancellation failures should escape the method so the .NET host observes the background-service failure. The sample's bounded bridge propagates handler failures back to the Kafka consumer callback.
 
-An active server must report source readiness only after it can receive new provider records. Because V1 has no replay or offline inbox, a restarted server must begin live consumption without replaying notifications emitted while it was offline. Exact provider offset/start-position mechanics remain the adapter's responsibility and must be documented and tested.
-
-The RC.1 Kafka sample still uses one fixed group ID and does not yet expose source readiness; it is the known implementation gap addressed by the next V1 release stage.
+An active server must report source readiness only after it can receive new provider records. Because V1 has no replay or offline inbox, a restarted server must begin live consumption without replaying notifications emitted while it was offline. Exact provider offset/start-position mechanics remain the adapter's responsibility and must be documented and tested. The repository's real-Kafka multi-host runner verifies assignment readiness, the shared-group failure mode, independent fan-out, host continuity, and no replay after restart.

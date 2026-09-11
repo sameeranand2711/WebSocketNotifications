@@ -34,31 +34,39 @@ npm run build
 
 ## Integration coverage
 
-ASP.NET Core TestServer tests use real WebSocket connections to verify authenticated connection setup, direct delivery to multiple connections, FIFO delivery, and authorized subscription routing. Sample integration tests exercise real KafkaHighThroughput adapter types without needing a running broker.
+ASP.NET Core TestServer tests use real WebSocket connections to verify authenticated connection setup, direct delivery to multiple connections, FIFO delivery, authorized subscription routing, and local routing behavior across two host instances. Sample integration tests exercise real KafkaHighThroughput adapter types and the generated per-process group configuration without needing a running broker.
 
 ## Live end-to-end validation
 
-Docker Desktop must be running. The runner uses a unique user for each execution, starts the sample host and actual reusable JavaScript client, publishes through Kafka, and checks the returned notification marker:
+Docker Desktop must be running. The multi-host runner creates a unique Kafka topic and proves:
+
+- two hosts in one shared group receive only one copy between them (negative control)
+- two hosts in independent namespaced groups each receive one copy
+- one host continues after its peer stops
+- a restarted host with a new group does not replay a notification emitted while offline
+
+It waits for Kafka partition-assignment readiness before connecting clients or publishing:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-live-e2e.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-multi-host-e2e.ps1
 ```
 
 Expected final line:
 
 ```text
-LIVE E2E PASSED: producer -> Kafka -> host -> WebSocket -> Next.js client (...)
+MULTI-HOST E2E PASSED: shared-group negative control, independent fan-out, host continuity, and no-replay restart (...)
 ```
 
-Process logs are written to the ignored `.e2e` directory when diagnosis is needed. The Kafka container remains running for subsequent sample use; stop it with `docker compose down` when finished.
+On success the runner removes its processes, topic, Kafka container, and per-run log directory. On failure it keeps the ignored per-run logs under `.e2e` for diagnosis. Pass `-LeaveKafkaRunning` to retain the Kafka container for subsequent sample use.
 
 ## Current release evidence
 
-- 106 .NET tests passing with no skips
+- 118 .NET tests passing with no skips
 - 6 Node tests passing
 - Strict TypeScript check passing
 - Next.js optimized production build passing
-- Live Kafka end-to-end flow passing
+- Real Kafka shared-group negative control and independent two-host fan-out passing
+- Real Kafka host-continuity and no-replay restart scenarios passing
 - Release .NET build with zero warnings and errors
 
 No coverage percentage or dedicated load benchmark is published for V1. Tests verify bounded memory behavior and non-blocking buffer overflow directly; sustained load benchmarking is a documented post-V1 improvement rather than an implied result.

@@ -66,6 +66,4 @@ For Kafka, active servers require independent consumer groups. A shared group is
 
 Server instance identity belongs to adapter/deployment configuration and never enters `NotificationEnvelope`. No Redis backplane, distributed presence registry, or targeted user/subscription-to-server resolution exists in V1.
 
-`WebSocketNotificationHub.PublishAsync` is intentionally process-local. Cluster-wide delivery must enter through the shared source. Source readiness means the provider subscription is established and able to receive new notifications before the server advertises readiness. A restarted server must not replay notifications emitted while it was offline because V1 provides live delivery rather than an offline inbox.
-
-The RC.1 Kafka sample does not yet meet this section: it uses a fixed group ID and lacks source-readiness and two-host proof. Those are implementation requirements for the multi-server fan-out stage before stable V1.
+`WebSocketNotificationHub.PublishAsync` is intentionally process-local. Cluster-wide delivery must enter through the shared source. Source readiness means the provider subscription is established and able to receive new notifications before the server advertises readiness. The Kafka sample reports ready only after partition assignment. A restarted server receives a new group identity and starts at the live end because V1 provides live delivery rather than an offline inbox.

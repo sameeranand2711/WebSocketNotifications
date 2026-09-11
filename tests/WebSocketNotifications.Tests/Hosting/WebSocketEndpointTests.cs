@@ -128,6 +128,143 @@ public sealed class WebSocketEndpointTests
         await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None);
     }
 
+    [Fact]
+    public async Task MultiServer_SameUserConnectedToBothHosts_EachConnectionReceivesOneCopy()
+    {
+        using var firstServer = CreateServer();
+        using var secondServer = CreateServer();
+        using var firstSocket = await ConnectAsync(firstServer, "user-1");
+        using var secondSocket = await ConnectAsync(secondServer, "user-1");
+
+        await PublishToAllAsync(
+            CreateNotification("message-1", userIds: ["user-1"]),
+            firstServer,
+            secondServer);
+
+        Assert.Equal("message-1", await ReceiveMessageIdAsync(firstSocket));
+        Assert.Equal("message-1", await ReceiveMessageIdAsync(secondSocket));
+        await AssertNoMessageAsync(firstSocket);
+        await AssertNoMessageAsync(secondSocket);
+        await CloseAsync(firstSocket, secondSocket);
+    }
+
+    [Fact]
+    public async Task MultiServer_UsersSplitAcrossHosts_OnlyIntendedUserReceives()
+    {
+        using var firstServer = CreateServer();
+        using var secondServer = CreateServer();
+        using var firstSocket = await ConnectAsync(firstServer, "user-1");
+        using var secondSocket = await ConnectAsync(secondServer, "user-2");
+
+        await PublishToAllAsync(
+            CreateNotification("for-user-1", userIds: ["user-1"]),
+            firstServer,
+            secondServer);
+
+        Assert.Equal("for-user-1", await ReceiveMessageIdAsync(firstSocket));
+        await AssertNoMessageAsync(secondSocket);
+
+        await PublishToAllAsync(
+            CreateNotification("for-user-2", userIds: ["user-2"]),
+            firstServer,
+            secondServer);
+
+        Assert.Equal("for-user-2", await ReceiveMessageIdAsync(secondSocket));
+        await AssertNoMessageAsync(firstSocket);
+        await CloseAsync(firstSocket, secondSocket);
+    }
+
+    [Fact]
+    public async Task MultiServer_SameSubscriptionOnBothHosts_EachConnectionReceives()
+    {
+        using var firstServer = CreateServer();
+        using var secondServer = CreateServer();
+        using var firstSocket = await ConnectAsync(firstServer, "user-1");
+        using var secondSocket = await ConnectAsync(secondServer, "user-2");
+        const string subscription = "tenant:abc:channel:alerts";
+        await SubscribeAsync(firstSocket, subscription, "first");
+        await SubscribeAsync(secondSocket, subscription, "second");
+
+        await PublishToAllAsync(
+            CreateNotification("subscription-message", subscriptions: [subscription]),
+            firstServer,
+            secondServer);
+
+        Assert.Equal("subscription-message", await ReceiveMessageIdAsync(firstSocket));
+        Assert.Equal("subscription-message", await ReceiveMessageIdAsync(secondSocket));
+        await CloseAsync(firstSocket, secondSocket);
+    }
+
+    [Fact]
+    public async Task MultiServer_UserAndSubscriptionMatch_OnePhysicalConnectionGetsOneCopy()
+    {
+        using var firstServer = CreateServer();
+        using var secondServer = CreateServer();
+        using var firstSocket = await ConnectAsync(firstServer, "user-1");
+        using var secondSocket = await ConnectAsync(secondServer, "user-1");
+        const string subscription = "tenant:abc:role:operator";
+        await SubscribeAsync(firstSocket, subscription, "first");
+        await SubscribeAsync(secondSocket, subscription, "second");
+
+        await PublishToAllAsync(
+            CreateNotification(
+                "combined-message",
+                userIds: ["user-1"],
+                subscriptions: [subscription]),
+            firstServer,
+            secondServer);
+
+        Assert.Equal("combined-message", await ReceiveMessageIdAsync(firstSocket));
+        Assert.Equal("combined-message", await ReceiveMessageIdAsync(secondSocket));
+        await AssertNoMessageAsync(firstSocket);
+        await AssertNoMessageAsync(secondSocket);
+        await CloseAsync(firstSocket, secondSocket);
+    }
+
+    [Fact]
+    public async Task MultiServer_HostWithNoLocalMatch_DoesNotSend()
+    {
+        using var firstServer = CreateServer();
+        using var secondServer = CreateServer();
+        using var firstSocket = await ConnectAsync(firstServer, "target-user");
+        using var secondSocket = await ConnectAsync(secondServer, "other-user");
+
+        await PublishToAllAsync(
+            CreateNotification("targeted-message", userIds: ["target-user"]),
+            firstServer,
+            secondServer);
+
+        Assert.Equal("targeted-message", await ReceiveMessageIdAsync(firstSocket));
+        await AssertNoMessageAsync(secondSocket);
+        await CloseAsync(firstSocket, secondSocket);
+    }
+
+    [Fact]
+    public async Task MultiServer_ConnectionLeavesOneHost_OtherHostContinuesDelivery()
+    {
+        using var firstServer = CreateServer();
+        using var secondServer = CreateServer();
+        using var firstSocket = await ConnectAsync(firstServer, "user-1");
+        using var secondSocket = await ConnectAsync(secondServer, "user-1");
+        await firstSocket.CloseAsync(
+            WebSocketCloseStatus.NormalClosure,
+            "disconnect",
+            CancellationToken.None);
+        await WaitUntilAsync(
+            () => firstServer.Services.GetRequiredService<ConnectionRegistry>().Count == 0);
+
+        await PublishToAllAsync(
+            CreateNotification("after-disconnect", userIds: ["user-1"]),
+            firstServer,
+            secondServer);
+
+        Assert.Equal("after-disconnect", await ReceiveMessageIdAsync(secondSocket));
+        await secondSocket.CloseAsync(
+            WebSocketCloseStatus.NormalClosure,
+            "done",
+            CancellationToken.None);
+    }
+
     private static TestServer CreateServer(
         string endpointPath = "/ws/notifications",
         bool resolveIdentity = true)
@@ -191,6 +328,59 @@ public sealed class WebSocketEndpointTests
 
         return messageIds;
     }
+
+    private static async Task<string> ReceiveMessageIdAsync(WebSocket socket)
+    {
+        using var document = JsonDocument.Parse(await ReceiveTextAsync(socket));
+        return document.RootElement.GetProperty("messageId").GetString()!;
+    }
+
+    private static async Task AssertNoMessageAsync(WebSocket socket)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(150));
+        var buffer = new byte[1];
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => socket.ReceiveAsync(buffer, timeout.Token));
+    }
+
+    private static async Task SubscribeAsync(
+        WebSocket socket,
+        string subscription,
+        string requestId)
+    {
+        var request = JsonSerializer.SerializeToUtf8Bytes(
+            new
+            {
+                type = "subscribe",
+                requestId,
+                subscriptions = new[] { subscription },
+            });
+        await socket.SendAsync(
+            request,
+            WebSocketMessageType.Text,
+            endOfMessage: true,
+            CancellationToken.None);
+        using var confirmation = JsonDocument.Parse(await ReceiveTextAsync(socket));
+        Assert.Equal("subscribed", confirmation.RootElement.GetProperty("type").GetString());
+    }
+
+    private static Task PublishToAllAsync(
+        NotificationEnvelope notification,
+        params TestServer[] servers) =>
+        Task.WhenAll(
+            servers.Select(server =>
+                server.Services
+                    .GetRequiredService<WebSocketNotificationHub>()
+                    .PublishAsync(notification)
+                    .AsTask()));
+
+    private static Task CloseAsync(params WebSocket[] sockets) =>
+        Task.WhenAll(
+            sockets.Select(socket =>
+                socket.CloseAsync(
+                    WebSocketCloseStatus.NormalClosure,
+                    "done",
+                    CancellationToken.None)));
 
     private static async Task<byte[]> ReceiveTextAsync(WebSocket socket)
     {

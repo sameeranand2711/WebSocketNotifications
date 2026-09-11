@@ -10,13 +10,11 @@ Kafka record
   -> connected clients
 ```
 
-## Stable V1 multi-server requirement
+## Stable V1 multi-server behavior
 
 Stable V1 uses source-level fan-out. Every simultaneously active host must consume the notification topic through an independent consumer group and then route only to its local WebSocket connections. A shared consumer group is invalid because it load-balances each Kafka record to one host.
 
-Group identity must follow `{application}.{environment}.{instance-id}`, with the instance ID unique to one active process incarnation. A restarted process uses a new group configured to start at the live end, so it does not replay the offline interval. Old group metadata follows Kafka's retention policy. Server identity is deployment metadata and never appears in `NotificationEnvelope`.
-
-The merged RC.1 sample does not implement this requirement yet: `appsettings.json` contains the fixed group `websocket-notification-host`, the root endpoint is liveness rather than source readiness, and only a one-host E2E has passed. Do not run multiple RC.1 hosts with the default group and assume fan-out. Stage 13 will implement and prove the required group lifecycle, readiness, no-replay restart behavior, and deterministic two-host E2E.
+The sample builds group identity as `{application}.{environment}.{instance-id}`. Set `KafkaAdapter.InstanceId` to a unique process/deployment identity, or omit it to generate a new GUID for that process incarnation. `KafkaAdapter.ApplicationName` defaults to `websocket-notifications`, and the ASP.NET Core host environment supplies the environment segment. A restarted process with an ephemeral identity creates a new group and starts at the live end, so it does not replay the offline interval. Old group metadata follows Kafka's retention policy. Server identity is deployment metadata and never appears in `NotificationEnvelope`.
 
 ## Run
 
@@ -30,7 +28,7 @@ dotnet run --project samples/WebSocketNotifications.Host --urls http://localhost
 
 The Compose health check waits for Kafka's consumer-group coordinator before reporting the broker healthy.
 
-The RC.1 liveness response is at `http://localhost:5000/`; it does not prove Kafka source readiness. Stable V1 must not report source readiness until the host can receive new notification records. The default WebSocket endpoint is:
+Liveness is available at `http://localhost:5000/`. Source readiness is available at `http://localhost:5000/health/ready` and returns success only after the Kafka consumer is running and has a partition assignment. The default WebSocket endpoint is:
 
 ```text
 ws://localhost:5000/ws/notifications?userId=user-1
@@ -52,18 +50,27 @@ The query-string authentication handler exists only to make the local sample run
 
 - `WebSocketNotifications`: core endpoint, heartbeat, compression, size, buffer, and slow-client options
 - `KafkaAdapter.ChannelCapacity`: bounded adapter handoff capacity
+- `KafkaAdapter.ApplicationName`: consumer-group application namespace
+- `KafkaAdapter.InstanceId`: optional explicit process identity; omission generates a per-process GUID
 - `KafkaConsumerWorkers`: KafkaHighThroughput broker, topic, consumer identity, ordering, retry, shutdown, and poison-message settings
 
 Override values through normal .NET configuration. For example:
 
 ```powershell
 $env:KafkaConsumerWorkers__Consumers__0__BootstrapServers = 'broker:9092'
+$env:KafkaAdapter__InstanceId = 'websocket-host-01'
 dotnet run --project samples/WebSocketNotifications.Host
 ```
 
 Do not place broker credentials in committed settings. Use environment variables, user secrets, or an external secret provider.
 
-The consumer uses `OrderedByPartition`; no global ordering is claimed across Kafka partitions.
+The sample replaces the named consumer's `GroupId` at startup with the generated namespaced identity and enforces `AutoOffsetReset=Latest`. The consumer uses `OrderedByPartition`; no global ordering is claimed across Kafka partitions.
+
+Run the real two-host fan-out, continuity, and restart proof from the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-multi-host-e2e.ps1
+```
 
 `WebSocketNotificationHub.PublishAsync` is local to one host process. Publish through the shared source when every active host must receive the notification.
 

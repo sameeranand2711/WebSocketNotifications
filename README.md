@@ -31,9 +31,7 @@ Shared application message source
         +-- WebSocket server C -> local routing -> local clients
 ```
 
-Each active server must have an independent source subscription. For Kafka, simultaneously active servers must use independent consumer groups; members of one shared group load-balance records and do not provide fan-out. The V1 group identity is namespaced by application and environment and includes an identity unique to the active process incarnation. A restart uses a new group and begins at the live end rather than replaying the offline interval. The core package contains no Kafka, RabbitMQ, Redis, or other broker dependency. Provider-specific fan-out, deserialization, acknowledgement, retry, and commit behavior remains in the consuming application. See [architecture](docs/architecture.md) and [message sources](docs/message-source.md).
-
-> **RC.1 implementation status:** the merged RC.1 Kafka sample still has one fixed consumer group and has not passed the required two-host fan-out E2E scenario. It is not yet scale-out ready. The stable V1 requirement is fixed here; implementation and proof belong to the next release stage. Track the remaining work in the [V1 release checklist](docs/v1-release-checklist.md).
+Each active server must have an independent source subscription. For Kafka, simultaneously active servers must use independent consumer groups; members of one shared group load-balance records and do not provide fan-out. The hosted sample generates `{application}.{environment}.{instance-id}`, uses a new process identity when `InstanceId` is omitted, starts unseen groups at the live end, and exposes assignment-aware readiness at `/health/ready`. The core package contains no Kafka, RabbitMQ, Redis, or other broker dependency. Provider-specific fan-out, deserialization, acknowledgement, retry, and commit behavior remains in the consuming application. See [architecture](docs/architecture.md) and [message sources](docs/message-source.md).
 
 ## Requirements
 
@@ -260,8 +258,10 @@ Invoke-RestMethod -Method Post -Uri http://localhost:5001/api/notifications/user
 For a fully automated real-broker check:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-live-e2e.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-multi-host-e2e.ps1
 ```
+
+The multi-host runner proves the shared-group failure mode, independent-group fan-out, continued delivery after one host stops, and no replay after restart. It uses a unique topic and cleans up its processes, topic, and Kafka container by default.
 
 Additional details are in the [host sample](samples/WebSocketNotifications.Host/README.md), [producer sample](samples/NotificationProducer/README.md), and [Next.js client](samples/clients/websocket-notifications-nextjs/README.md).
 

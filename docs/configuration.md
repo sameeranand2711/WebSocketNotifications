@@ -74,4 +74,16 @@ When enabled, the endpoint requests WebSocket response compression. Compression 
 
 ## Sample-specific settings
 
-The host additionally uses `KafkaAdapter.ChannelCapacity` and `KafkaConsumerWorkers`. The producer uses `NotificationProducer` and `KafkaProducerClients`. These are sample/provider settings, not core library options. Broker credentials should be supplied by environment variables or secret providers and must not be committed.
+The host sample additionally uses these `KafkaAdapter` settings:
+
+| Option | Default | Behavior |
+|---|---:|---|
+| `ChannelCapacity` | `256` | Bounded handoff capacity; valid range 1 through 10,000 |
+| `ApplicationName` | `websocket-notifications` | Required application namespace in the consumer group |
+| `InstanceId` | generated GUID | Optional explicit identity unique to this active process incarnation |
+
+The effective group is `{application}.{environment}.{instance-id}`. The environment segment comes from the ASP.NET Core host environment. The sample overwrites the named Kafka consumer's `GroupId` with this value and enforces `AutoOffsetReset=Latest`, so an ephemeral restarted process does not replay notifications emitted while it was offline. Explicit `InstanceId` values must be unique among simultaneously active hosts; reusing one intentionally creates a shared Kafka group and breaks fan-out.
+
+The sample exposes liveness at `/` and Kafka source readiness at `/health/ready`. Readiness returns HTTP 200 only after the consumer is running and has a partition assignment; degraded and unhealthy states return HTTP 503.
+
+The remaining `KafkaConsumerWorkers` settings and the producer's `NotificationProducer` and `KafkaProducerClients` settings are sample/provider configuration, not core library options. Broker credentials should be supplied by environment variables or secret providers and must not be committed.

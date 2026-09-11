@@ -65,4 +65,4 @@ npm run typecheck
 npm run build
 ```
 
-The repository-level `scripts/run-live-e2e.ps1` imports the same reusable client code to validate a real Kafka-to-WebSocket notification.
+The repository-level `scripts/run-live-e2e.ps1` imports the same reusable client code for a one-host Kafka-to-WebSocket check. `scripts/run-multi-host-e2e.ps1` uses that client implementation to verify independent Kafka fan-out across two hosts, continuity after one host stops, and no replay after restart.

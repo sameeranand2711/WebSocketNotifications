@@ -9,9 +9,12 @@ namespace WebSocketNotifications.Host.Kafka;
 internal sealed class KafkaNotificationConsumer(KafkaNotificationMessageSource source)
     : IKafkaTopicConsumer<string, string>
 {
+    /// <summary>Gets the logical KafkaHighThroughput consumer name.</summary>
+    public const string Name = "websocket-notifications";
+
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
-    public string ConsumerName => "websocket-notifications";
+    public string ConsumerName => Name;
 
     public async Task HandleAsync(
         ConsumeResult<string, string> message,
