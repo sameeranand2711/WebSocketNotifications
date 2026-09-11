@@ -22,17 +22,16 @@ This pack supplements the existing repository Agents 01–10.
 Each specialist stage:
 
 ```text
-updated main
-  -> dedicated branch
+updated release/v1.0.0-rc.2
+  -> dedicated stage branch
   -> implementation/validation
   -> PASS
-  -> PR/MR to main
-  -> STOP / human review
-  -> human merge
-  -> resume orchestrator
+  -> merge into cumulative RC.2 branch
+  -> verify/delete completed stage branch
+  -> next sequential stage
 ```
 
-No automatic merge.
+`main` remains untouched until Agents 12 through 19 pass and the human personally tests the complete cumulative candidate. Only then is one final PR/MR created from `release/v1.0.0-rc.2` to `main`; it is never auto-merged.
 
 Stable 1.0.0 publication requires explicit human approval after RC.2 feedback/soak, and the release is complete only after the NuGet.org package passes a clean external smoke test.
 

@@ -13,11 +13,14 @@ These rules apply throughout the V1 release workflow.
 - Read and obey the existing repository governance under `Agents/01-*.md` through `Agents/09-*.md` where applicable.
 - Keep execution strictly sequential unless an agent explicitly identifies a safe, isolated subtask.
 - Never begin the next V1 release stage until the current stage has produced all required outputs and reached PASS.
-- Every implementation, fix, hotfix, refactor, release-engineering change, or documentation change must occur on a newly created and checked-out dedicated branch.
+- Agents 12 through 19 accumulate on `release/v1.0.0-rc.2`, the cumulative release branch.
+- Every implementation, fix, hotfix, refactor, release-engineering change, or documentation change must occur on a newly created and checked-out dedicated stage branch created from the latest cumulative branch.
 - Never work directly on `main`.
-- After a stage passes, create a pull/merge request targeting `main`.
-- Never auto-merge. Human review decides whether to merge.
-- When resuming after a human merge, first update local `main`, verify the previous stage landed, then create the next branch from the updated `main`.
+- After a stage passes, merge its dedicated branch into the cumulative branch and verify that the stage landed before proceeding.
+- Do not merge the cumulative branch into `main` until Agents 12 through 19 pass and the human has personally tested and approved the complete RC.2 candidate.
+- Create only the final RC.2 pull/merge request from the cumulative branch to `main` after that approval. Never auto-merge it.
+- A completed stage branch may be deleted after its merge into the cumulative branch is verified.
+- When resuming, update the cumulative branch, verify the previous stage landed there, then create the next stage branch from that updated cumulative state.
 - Use TDD for behavior changes: cohesive failing tests first, minimal coherent implementation second, refactor while green.
 - Preserve `UserIds` and `Subscriptions` as the only core routing inputs.
 - Subscription keys remain opaque and application-defined.
@@ -46,32 +49,18 @@ Run strictly in this order:
 For Agents 12–19:
 
 ```text
-Update main
-  ↓
-Create dedicated branch
-  ↓
-Run specialist agent
-  ↓
-Run required tests/reviews
-  ↓
-PASS?
- ├─ No -> remain on stage and fix only stage-related blockers
- └─ Yes
-      ↓
-Create PR/MR to main
-      ↓
-STOP
-      ↓
-Human reviews/merges
-      ↓
-Resume orchestrator
-      ↓
-Verify merge landed on main
-      ↓
-Proceed to next agent
+Update cumulative RC.2 branch
+  -> Create dedicated stage branch
+  -> Run specialist agent
+  -> Run required tests/reviews
+  -> PASS?
+     - No: remain on stage and fix only stage-related blockers
+     - Yes: merge stage branch into cumulative RC.2 branch
+  -> Verify merge landed and optionally delete stage branch
+  -> Proceed to next agent
 ```
 
-Do not create later-stage branches before prior-stage changes are merged.
+Do not create later-stage branches before prior-stage changes are merged into the cumulative branch.
 
 ## Failure Handling
 
@@ -144,16 +133,13 @@ After Agent 19 reaches PASS:
 
 ```text
 RC.2 ready
-   ↓
-Publish/use prerelease through approved process
-   ↓
-Collect feedback / soak
-   ↓
-Resolve release-blocking findings
-   ↓
-Human explicitly approves stable release
-   ↓
-Only then Agent 20 may run
+  -> Human tests the complete cumulative candidate
+  -> Resolve release-blocking feedback and repeat affected gates
+  -> Human approves creation of the final RC.2 PR to main
+  -> Create PR/MR from release/v1.0.0-rc.2 to main
+  -> Human reviews and merges; never auto-merge
+  -> Human explicitly approves stable publication
+  -> Only then Agent 20 may run
 ```
 
 Do not treat RC.2 PASS as automatic approval to publish stable V1.
@@ -178,7 +164,7 @@ On every resumed run:
 1. inspect current branch
 2. fetch/update repository state
 3. determine the last completed/merged V1 stage
-4. verify its expected outputs on `main`
+4. verify its expected outputs on `release/v1.0.0-rc.2`
 5. identify the next incomplete stage
 6. continue from there
 

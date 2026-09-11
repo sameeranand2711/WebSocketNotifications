@@ -19,6 +19,12 @@ The merged `1.0.0-rc.1` code already provides:
 
 All existing verification must be rerun after the remaining changes. Historical RC results are useful evidence but are not final V1 release evidence.
 
+## Branch workflow
+
+Agents 12 through 19 accumulate sequentially on `release/v1.0.0-rc.2`. Each stage is developed on a new branch created from the latest cumulative commit, must reach PASS, and is then merged into the cumulative branch. Completed stage branches may be deleted after their merge is verified.
+
+`main` remains unchanged until every stage through Agent 19 passes and the repository owner personally tests and approves the complete cumulative RC.2 candidate. Only then is one final PR created from the cumulative branch to `main`, and it is never automatically merged. Agent 20 still requires separate explicit approval for stable publication.
+
 ## V1 architecture decision: multi-server fan-out
 
 V1 will support multiple WebSocket servers by delivering every notification to every active WebSocket server. Each server will use its existing in-memory registry to select its own matching connections.
