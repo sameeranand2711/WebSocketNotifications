@@ -48,16 +48,20 @@ function Start-BackgroundProcess {
         [void]$startInfo.ArgumentList.Add($argument)
     }
 
-    $outputStream = [System.IO.File]::Open(
+    $outputStream = [System.IO.FileStream]::new(
         $Output,
         [System.IO.FileMode]::Create,
         [System.IO.FileAccess]::Write,
-        [System.IO.FileShare]::Read)
-    $errorStream = [System.IO.File]::Open(
+        [System.IO.FileShare]::Read,
+        1,
+        [System.IO.FileOptions]::Asynchronous)
+    $errorStream = [System.IO.FileStream]::new(
         $ErrorOutput,
         [System.IO.FileMode]::Create,
         [System.IO.FileAccess]::Write,
-        [System.IO.FileShare]::Read)
+        [System.IO.FileShare]::Read,
+        1,
+        [System.IO.FileOptions]::Asynchronous)
     $process = [System.Diagnostics.Process]::new()
     $process.StartInfo = $startInfo
     try {
@@ -90,7 +94,7 @@ function Complete-BackgroundProcessRedirects {
 
     try {
         foreach ($redirectTask in $Process.RedirectTasks) {
-            $redirectTask.GetAwaiter().GetResult()
+            [void]$redirectTask.GetAwaiter().GetResult()
         }
     }
     finally {
