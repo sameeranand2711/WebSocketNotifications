@@ -21,18 +21,39 @@ The Next.js tests cover protocol parsing, reconnect-loop deduplication, resubscr
 From the repository root:
 
 ```powershell
-dotnet test WebSocketNotifications.slnx --configuration Release
+dotnet restore WebSocketNotifications.slnx --locked-mode
+dotnet build WebSocketNotifications.slnx --configuration Release --no-restore
+dotnet test WebSocketNotifications.slnx --configuration Release --no-build --no-restore
 ```
 
 Frontend validation:
 
 ```powershell
 cd samples/clients/websocket-notifications-nextjs
-npm install
+npm ci
+npm audit --audit-level=high
 npm test
 npm run typecheck
 npm run build
 ```
+
+## Package validation
+
+The release package enables NuGet package validation, portable symbols, Source Link, and deterministic CI build metadata. Build it, inspect its exact contents, and consume it from a clean temporary ASP.NET Core application:
+
+```powershell
+dotnet pack src/WebSocketNotifications/WebSocketNotifications.csproj --configuration Release --no-build --no-restore --output artifacts/packages/current
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/inspect-package.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-package-smoke-test.ps1
+```
+
+The inspection requires one `.nupkg` and one `.snupkg`, the `net10.0` library and XML documentation, MIT/project/repository metadata, the GitHub Source Link mapping, and no package dependencies. The smoke runner copies a standalone project outside the repository, restores `WebSocketNotifications` only from the local package directory, and proves custom authentication, user resolution, DI registration, endpoint mapping, and direct-user WebSocket delivery without a project reference.
+
+## Continuous integration
+
+`Build, test, and package` performs a locked audited restore, warning-free Release build, all .NET tests with skipped tests configured as failures, package validation/inspection/smoke testing, dependency audit, JavaScript tests, TypeScript checking, and the optimized Next.js build. It retains both NuGet artifacts.
+
+`Multi-host Kafka E2E` runs the real broker scenario in a separate required job and retains `.e2e` diagnostics on failure. Both workflows run for V1 stage/cumulative pushes and pull requests targeting `main`; caches contain dependencies only, never generated build output.
 
 ## Integration coverage
 

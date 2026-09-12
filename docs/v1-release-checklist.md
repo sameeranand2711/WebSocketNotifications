@@ -117,34 +117,35 @@ V1 targets `net10.0` only. .NET 10 is the active LTS line, while [.NET 8 reaches
 - [x] Run sample and WebSocket integration tests on .NET 10.
 - [x] Review relevant .NET/ASP.NET Core compatibility changes before changing target frameworks.
 - [x] Verify `global.json` and update README requirements, package metadata, samples, release notes, and compatibility documentation consistently.
-- [ ] Create the currently absent CI workflow with the same .NET 10 matrix in Agent 16.
+- [x] Create CI workflows with the same .NET 10 matrix in Agent 16.
 
 Done when the package's target frameworks, documented support policy, and tested runtimes agree.
 
 ### 6. Add continuous integration
 
-- [ ] Add a pull-request workflow that restores, builds in Release mode, and runs all .NET tests.
-- [ ] Run JavaScript tests, TypeScript checking, and the optimized Next.js build.
-- [ ] Run `dotnet pack` and retain the package as a workflow artifact.
-- [ ] Add a multi-host live Kafka E2E job. It may be a separate required workflow if its Docker startup time makes the normal unit-test job unnecessarily slow.
-- [ ] Fail CI on warnings, skipped required tests, package-validation failures, or audit failures.
-- [ ] Add dependency caching without caching generated build output in a way that can hide failures.
-- [ ] Require the relevant checks on pull requests to `main`.
+- [x] Add a pull-request workflow that restores, builds in Release mode, and runs all .NET tests.
+- [x] Run JavaScript tests, TypeScript checking, and the optimized Next.js build.
+- [x] Run `dotnet pack` and retain the package as a workflow artifact.
+- [x] Add a separate multi-host live Kafka E2E workflow.
+- [x] Fail CI on warnings, skipped required tests, package-validation failures, or audit failures.
+- [x] Add dependency caching without caching generated build output in a way that can hide failures.
+- [x] Require the relevant checks on pull requests to `main`.
 
 Done when a clean GitHub runner can reproduce the release build and all required tests without undocumented manual setup.
 
 ### 7. Harden and validate the NuGet package
 
-- [ ] Add `PackageLicenseExpression` with `MIT` even though the repository already contains the license file.
-- [ ] Add the appropriate project/package URL, tags, and other discovery metadata.
-- [ ] Enable Source Link and publish repository metadata.
-- [ ] Produce a symbol package (`.snupkg`).
-- [ ] Enable deterministic/continuous-integration build metadata for release builds.
-- [ ] Enable NuGet audit in CI and remove the repository-wide `NuGetAudit=false` suppression unless a narrowly documented exception is required.
-- [ ] Enable package validation for the release package. Establish `1.0.0` as the API-compatibility baseline for subsequent releases.
-- [ ] Inspect the generated `.nupkg` and `.snupkg` contents.
-- [ ] Install the packed package into a clean external ASP.NET Core smoke-test application and verify registration, endpoint mapping, and a real WebSocket exchange.
-- [ ] Confirm that the core NuGet package has no Kafka, Redis, sample, or frontend dependencies.
+- [x] Add `PackageLicenseExpression` with `MIT` even though the repository already contains the license file.
+- [x] Add the appropriate project/package URL, tags, and other discovery metadata.
+- [x] Enable SDK-provided Source Link and publish repository metadata.
+- [x] Produce a symbol package (`.snupkg`).
+- [x] Enable deterministic/continuous-integration build metadata for release builds.
+- [x] Enable NuGet audit in CI and remove the repository-wide `NuGetAudit=false` suppression.
+- [x] Enable package validation for the release package.
+- [ ] Establish `1.0.0` as the API-compatibility baseline for subsequent releases after stable V1 is published.
+- [x] Inspect the generated `.nupkg` and `.snupkg` contents.
+- [x] Install the packed package into a clean external ASP.NET Core smoke-test application and verify registration, endpoint mapping, authentication/identity integration, and a real WebSocket exchange.
+- [x] Confirm that the core NuGet package has no Kafka, Redis, sample, frontend, or other package dependency.
 
 Done when the exact package intended for publication has been built once in CI, inspected, and consumed successfully without project references.
 

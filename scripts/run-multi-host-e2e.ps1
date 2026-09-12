@@ -19,6 +19,92 @@ $processes = [System.Collections.Generic.List[System.Diagnostics.Process]]::new(
 $kafkaStarted = $false
 $passed = $false
 
+function Start-BackgroundProcess {
+    param(
+        [string]$FilePath,
+        [string[]]$ArgumentList,
+        [string]$Output,
+        [string]$ErrorOutput
+    )
+
+    if ($PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows) {
+        return Start-Process `
+            -FilePath $FilePath `
+            -WindowStyle Hidden `
+            -PassThru `
+            -ArgumentList $ArgumentList `
+            -RedirectStandardOutput $Output `
+            -RedirectStandardError $ErrorOutput
+    }
+
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $FilePath
+    $startInfo.WorkingDirectory = (Get-Location).Path
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    foreach ($argument in $ArgumentList) {
+        [void]$startInfo.ArgumentList.Add($argument)
+    }
+
+    $outputStream = [System.IO.FileStream]::new(
+        $Output,
+        [System.IO.FileMode]::Create,
+        [System.IO.FileAccess]::Write,
+        [System.IO.FileShare]::Read,
+        1,
+        [System.IO.FileOptions]::Asynchronous)
+    $errorStream = [System.IO.FileStream]::new(
+        $ErrorOutput,
+        [System.IO.FileMode]::Create,
+        [System.IO.FileAccess]::Write,
+        [System.IO.FileShare]::Read,
+        1,
+        [System.IO.FileOptions]::Asynchronous)
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) {
+            throw "Could not start $FilePath."
+        }
+        $redirectTasks = @(
+            $process.StandardOutput.BaseStream.CopyToAsync($outputStream),
+            $process.StandardError.BaseStream.CopyToAsync($errorStream)
+        )
+        $process | Add-Member -NotePropertyName RedirectTasks -NotePropertyValue $redirectTasks
+        $process | Add-Member -NotePropertyName RedirectStreams -NotePropertyValue @($outputStream, $errorStream)
+        $process | Add-Member -NotePropertyName RedirectsCompleted -NotePropertyValue $false
+        return $process
+    }
+    catch {
+        $outputStream.Dispose()
+        $errorStream.Dispose()
+        $process.Dispose()
+        throw
+    }
+}
+
+function Complete-BackgroundProcessRedirects {
+    param([System.Diagnostics.Process]$Process)
+
+    if (-not $Process.PSObject.Properties['RedirectTasks'] -or $Process.RedirectsCompleted) {
+        return
+    }
+
+    try {
+        foreach ($redirectTask in $Process.RedirectTasks) {
+            [void]$redirectTask.GetAwaiter().GetResult()
+        }
+    }
+    finally {
+        foreach ($redirectStream in $Process.RedirectStreams) {
+            $redirectStream.Dispose()
+        }
+        $Process.RedirectsCompleted = $true
+    }
+}
+
 function Start-DotNetApplication {
     param(
         [string]$Name,
@@ -37,10 +123,11 @@ function Start-DotNetApplication {
         '--',
         '--urls', $Url
     ) + $ApplicationArguments
-    $process = Start-Process -FilePath 'dotnet' -WindowStyle Hidden -PassThru `
+    $process = Start-BackgroundProcess `
+        -FilePath 'dotnet' `
         -ArgumentList $arguments `
-        -RedirectStandardOutput $output `
-        -RedirectStandardError $errorOutput
+        -Output $output `
+        -ErrorOutput $errorOutput
     $processes.Add($process)
     return $process
 }
@@ -88,8 +175,19 @@ function Stop-Application {
     param([System.Diagnostics.Process]$Process)
 
     if ($Process -and -not $Process.HasExited) {
-        Stop-Process -Id $Process.Id
+        if ($PSVersionTable.PSEdition -eq 'Desktop') {
+            Stop-Process -Id $Process.Id
+        }
+        else {
+            # `dotnet run` can leave the launched application holding the inherited
+            # output pipes after its parent exits. Stop the complete process tree so
+            # redirected streams reach EOF on Linux as well as Windows.
+            $Process.Kill($true)
+        }
         [void]$Process.WaitForExit(10000)
+    }
+    if ($Process) {
+        Complete-BackgroundProcessRedirects $Process
     }
 }
 
@@ -114,10 +212,11 @@ function Start-Probe {
         $arguments += $ForbiddenMarker
     }
 
-    $process = Start-Process -FilePath $NodeExecutable -WindowStyle Hidden -PassThru `
+    $process = Start-BackgroundProcess `
+        -FilePath $NodeExecutable `
         -ArgumentList $arguments `
-        -RedirectStandardOutput $output `
-        -RedirectStandardError $errorOutput
+        -Output $output `
+        -ErrorOutput $errorOutput
     $processes.Add($process)
 
     for ($attempt = 0; $attempt -lt 60; $attempt++) {
@@ -146,6 +245,7 @@ function Wait-ForProbeSuccess {
     }
 
     $Process.WaitForExit()
+    Complete-BackgroundProcessRedirects $Process
     $probeOutput = Get-Content -Raw (Join-Path $runDirectory "$Name.out.log")
     if ($probeOutput -notmatch '"type":"result"') {
         $probeError = Get-Content -Raw (Join-Path $runDirectory "$Name.err.log")

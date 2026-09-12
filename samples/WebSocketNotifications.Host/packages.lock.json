@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "KafkaHighThroughput": {
+        "type": "Direct",
+        "requested": "[1.0.0-preview.1, )",
+        "resolved": "1.0.0-preview.1",
+        "contentHash": "KbXemal6rwVLgRy42xj54X5GlIDVTBiYkOM2wQeoE6mohPW5pAmKJ7zozOoQNqOjhjlEfHxDE8nPkuAF/Vmfug==",
+        "dependencies": {
+          "Confluent.Kafka": "2.15.0"
+        }
+      },
+      "Confluent.Kafka": {
+        "type": "Transitive",
+        "resolved": "2.15.0",
+        "contentHash": "/BOEnIKAq1AHq6vPl+0RBDiKwI6L6tJaYBo1qH+OAUP5MFy0i0MhSfgtqKW9/M8J9dQPfb/izWU+R0Uc6DyW2w==",
+        "dependencies": {
+          "librdkafka.redist": "2.15.0"
+        }
+      },
+      "librdkafka.redist": {
+        "type": "Transitive",
+        "resolved": "2.15.0",
+        "contentHash": "DzG2YcqWPT3Ly91aeDYsgsVcJXlOMiK9oqyRdPvQz9ZMbcV8Ob0rQA6fNUQ4sarmzFk4phqwPlVQxtZDGLP69w=="
+      },
+      "websocketnotifications": {
+        "type": "Project"
+      }
+    }
+  }
+}

@@ -5,6 +5,15 @@
     <PackageId>WebSocketNotifications</PackageId>
     <Description>Provider-neutral ASP.NET Core WebSocket notification routing.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/sameeranand2711/WebSocketNotifications</PackageProjectUrl>
+    <PackageTags>websocket;notifications;aspnetcore;realtime</PackageTags>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <DebugType>portable</DebugType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

@@ -1,0 +1,61 @@
+name: Multi-host Kafka E2E
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - release/v1.0.0-rc.2
+      - release/v1-stage-*
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: multi-host-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+jobs:
+  multi-host-kafka:
+    name: Multi-host Kafka fan-out
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Restore with locked dependencies and audit
+        run: dotnet restore WebSocketNotifications.slnx --locked-mode
+
+      - name: Run real multi-host Kafka scenario
+        shell: pwsh
+        run: ./scripts/run-multi-host-e2e.ps1 -NodeExecutable node
+
+      - name: Retain failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: multi-host-e2e-failure-${{ github.run_id }}
+          path: .e2e/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 7
