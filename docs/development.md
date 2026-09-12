@@ -1,5 +1,7 @@
 # Development
 
+V1 supports and tests .NET 10 only. The repository selects its SDK through `global.json`; install the current .NET 10 servicing update before building or deploying.
+
 ## Repository structure
 
 ```text
@@ -40,7 +42,7 @@ correctness -> clarity -> simplicity -> testability -> performance -> extensibil
 - Keep the public API small and treat it as compatibility-sensitive.
 - Do not add a broker dependency to the core project.
 
-The persistent detailed rules are in [`Agents/02-development-rules-agent.md`](../Agents/02-development-rules-agent.md). The sequential stable-release workflow is controlled by [`Agents/11-v1-release-orchestration-agent.md`](../Agents/11-v1-release-orchestration-agent.md); every stage uses a dedicated branch and stops for human review after opening its PR.
+The persistent detailed rules are in [`Agents/02-development-rules-agent.md`](../Agents/02-development-rules-agent.md). The sequential stable-release workflow is controlled by [`Agents/11-v1-release-orchestration-agent.md`](../Agents/11-v1-release-orchestration-agent.md). Each stage uses a dedicated branch and, after PASS, is merged only into the cumulative RC.2 branch. `main` remains unchanged until all pre-publication stages pass and the repository owner personally tests and approves the complete candidate.
 
 ## Async and resource rules
 

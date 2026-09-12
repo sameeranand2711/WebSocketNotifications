@@ -2,7 +2,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Xunit;
 
@@ -108,17 +107,18 @@ public sealed class ServiceRegistrationTests
     [Fact]
     public async Task AddWebSocketNotifications_WhenInvalidSubsystemIsUnused_DoesNotCrashHost()
     {
-        var builder = new WebHostBuilder()
-            .ConfigureServices(services =>
-                services.AddWebSocketNotifications(options => options.OutgoingBufferCapacity = 0))
-            .Configure(app => app.Run(context =>
-            {
-                context.Response.StatusCode = 204;
-                return Task.CompletedTask;
-            }));
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddWebSocketNotifications(options => options.OutgoingBufferCapacity = 0);
+        await using var app = builder.Build();
+        app.Run(context =>
+        {
+            context.Response.StatusCode = 204;
+            return Task.CompletedTask;
+        });
+        await app.StartAsync();
 
-        using var server = new TestServer(builder);
-        var response = await server.CreateClient().GetAsync("/");
+        var response = await app.GetTestClient().GetAsync("/");
 
         Assert.Equal(System.Net.HttpStatusCode.NoContent, response.StatusCode);
     }

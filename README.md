@@ -35,11 +35,11 @@ Each active server must have an independent source subscription. For Kafka, simu
 
 ## Requirements
 
-- .NET 8 SDK or a newer SDK capable of targeting .NET 8
+- .NET 10 SDK with the current servicing update
 - Node.js 20.9 or newer for the Next.js sample
 - Docker Desktop for the Kafka sample and live E2E test
 
-The repository pins SDK `10.0.101` for repeatable local builds. The library itself targets `net8.0`.
+The repository selects the .NET 10 SDK through `global.json`, and the library and .NET samples target `net10.0`. V1 supports .NET 10 only. Install the latest .NET 10 servicing update in development and production environments.
 
 ## Installation
 

@@ -1,5 +1,7 @@
 # Testing
 
+All .NET projects target `net10.0`. The supported and required test runtime for V1 is .NET 10 with the current servicing update.
+
 ## Automated suites
 
 The xUnit project mirrors the production responsibilities:
@@ -61,12 +63,12 @@ On success the runner removes its processes, topic, Kafka container, and per-run
 
 ## Current release evidence
 
-- 135 .NET tests passing with no skips
+- 135 .NET tests passing on .NET 10 with no skips
 - 6 Node tests passing
 - Strict TypeScript check passing
 - Next.js optimized production build passing
 - Real Kafka shared-group negative control and independent two-host fan-out passing
 - Real Kafka host-continuity and no-replay restart scenarios passing
-- Release .NET build with zero warnings and errors
+- Release .NET 10 build with zero warnings and errors
 
 No coverage percentage or dedicated load benchmark is published for V1. Tests verify bounded memory behavior and non-blocking buffer overflow directly; sustained load benchmarking is a documented post-V1 improvement rather than an implied result.
