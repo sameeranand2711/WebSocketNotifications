@@ -27,18 +27,78 @@ function Start-BackgroundProcess {
         [string]$ErrorOutput
     )
 
-    $startOptions = @{
-        FilePath = $FilePath
-        PassThru = $true
-        ArgumentList = $ArgumentList
-        RedirectStandardOutput = $Output
-        RedirectStandardError = $ErrorOutput
-    }
     if ($PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows) {
-        $startOptions.WindowStyle = 'Hidden'
+        return Start-Process `
+            -FilePath $FilePath `
+            -WindowStyle Hidden `
+            -PassThru `
+            -ArgumentList $ArgumentList `
+            -RedirectStandardOutput $Output `
+            -RedirectStandardError $ErrorOutput
     }
 
-    return Start-Process @startOptions
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $FilePath
+    $startInfo.WorkingDirectory = (Get-Location).Path
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    foreach ($argument in $ArgumentList) {
+        [void]$startInfo.ArgumentList.Add($argument)
+    }
+
+    $outputStream = [System.IO.File]::Open(
+        $Output,
+        [System.IO.FileMode]::Create,
+        [System.IO.FileAccess]::Write,
+        [System.IO.FileShare]::Read)
+    $errorStream = [System.IO.File]::Open(
+        $ErrorOutput,
+        [System.IO.FileMode]::Create,
+        [System.IO.FileAccess]::Write,
+        [System.IO.FileShare]::Read)
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) {
+            throw "Could not start $FilePath."
+        }
+        $redirectTasks = @(
+            $process.StandardOutput.BaseStream.CopyToAsync($outputStream),
+            $process.StandardError.BaseStream.CopyToAsync($errorStream)
+        )
+        $process | Add-Member -NotePropertyName RedirectTasks -NotePropertyValue $redirectTasks
+        $process | Add-Member -NotePropertyName RedirectStreams -NotePropertyValue @($outputStream, $errorStream)
+        $process | Add-Member -NotePropertyName RedirectsCompleted -NotePropertyValue $false
+        return $process
+    }
+    catch {
+        $outputStream.Dispose()
+        $errorStream.Dispose()
+        $process.Dispose()
+        throw
+    }
+}
+
+function Complete-BackgroundProcessRedirects {
+    param([System.Diagnostics.Process]$Process)
+
+    if (-not $Process.PSObject.Properties['RedirectTasks'] -or $Process.RedirectsCompleted) {
+        return
+    }
+
+    try {
+        foreach ($redirectTask in $Process.RedirectTasks) {
+            $redirectTask.GetAwaiter().GetResult()
+        }
+    }
+    finally {
+        foreach ($redirectStream in $Process.RedirectStreams) {
+            $redirectStream.Dispose()
+        }
+        $Process.RedirectsCompleted = $true
+    }
 }
 
 function Start-DotNetApplication {
@@ -114,6 +174,9 @@ function Stop-Application {
         Stop-Process -Id $Process.Id
         [void]$Process.WaitForExit(10000)
     }
+    if ($Process) {
+        Complete-BackgroundProcessRedirects $Process
+    }
 }
 
 function Start-Probe {
@@ -170,6 +233,7 @@ function Wait-ForProbeSuccess {
     }
 
     $Process.WaitForExit()
+    Complete-BackgroundProcessRedirects $Process
     $probeOutput = Get-Content -Raw (Join-Path $runDirectory "$Name.out.log")
     if ($probeOutput -notmatch '"type":"result"') {
         $probeError = Get-Content -Raw (Join-Path $runDirectory "$Name.err.log")
