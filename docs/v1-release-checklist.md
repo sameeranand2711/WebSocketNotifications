@@ -129,7 +129,7 @@ Done when the package's target frameworks, documented support policy, and tested
 - [x] Add a separate multi-host live Kafka E2E workflow.
 - [x] Fail CI on warnings, skipped required tests, package-validation failures, or audit failures.
 - [x] Add dependency caching without caching generated build output in a way that can hide failures.
-- [ ] Require the relevant checks on pull requests to `main`.
+- [x] Require the relevant checks on pull requests to `main`.
 
 Done when a clean GitHub runner can reproduce the release build and all required tests without undocumented manual setup.
 
