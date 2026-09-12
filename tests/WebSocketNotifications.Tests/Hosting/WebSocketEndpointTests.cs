@@ -21,9 +21,9 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task Endpoint_WhenRequestIsAnonymous_ReturnsUnauthorized()
     {
-        using var server = CreateServer();
+        await using var server = await CreateServerAsync();
 
-        var response = await server.CreateClient().GetAsync("/ws/notifications");
+        var response = await server.GetTestClient().GetAsync("/ws/notifications");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -31,11 +31,11 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task Endpoint_WhenAuthenticatedRequestIsNotWebSocket_ReturnsBadRequest()
     {
-        using var server = CreateServer();
+        await using var server = await CreateServerAsync();
         var request = new HttpRequestMessage(HttpMethod.Get, "/ws/notifications");
         request.Headers.Add("X-Test-User", "user-1");
 
-        var response = await server.CreateClient().SendAsync(request);
+        var response = await server.GetTestClient().SendAsync(request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -43,8 +43,8 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task Endpoint_UsesConfiguredPath()
     {
-        using var server = CreateServer(endpointPath: "/custom-notifications");
-        var client = server.CreateClient();
+        await using var server = await CreateServerAsync(endpointPath: "/custom-notifications");
+        var client = server.GetTestClient();
         var oldRequest = new HttpRequestMessage(HttpMethod.Get, "/ws/notifications");
         oldRequest.Headers.Add("X-Test-User", "user-1");
         var customRequest = new HttpRequestMessage(HttpMethod.Get, "/custom-notifications");
@@ -60,8 +60,8 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task Endpoint_WhenIdentityCannotBeResolved_RejectsWebSocketUpgrade()
     {
-        using var server = CreateServer(resolveIdentity: false);
-        var client = server.CreateWebSocketClient();
+        await using var server = await CreateServerAsync(resolveIdentity: false);
+        var client = server.GetTestServer().CreateWebSocketClient();
         client.ConfigureRequest = request => request.Headers["X-Test-User"] = "user-1";
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -72,8 +72,8 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task Endpoint_WhenClientConnectsAndCloses_RegistersThenCleansUpConnection()
     {
-        using var server = CreateServer();
-        var client = server.CreateWebSocketClient();
+        await using var server = await CreateServerAsync();
+        var client = server.GetTestServer().CreateWebSocketClient();
         client.ConfigureRequest = request => request.Headers["X-Test-User"] = "user-1";
         using var socket = await client.ConnectAsync(
             new Uri("ws://localhost/ws/notifications"),
@@ -90,7 +90,7 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task Endpoint_DirectNotificationsReachAllUserConnectionsInPublishOrder()
     {
-        using var server = CreateServer();
+        await using var server = await CreateServerAsync();
         using var first = await ConnectAsync(server, "user-1");
         using var second = await ConnectAsync(server, "user-1");
         var registry = server.Services.GetRequiredService<ConnectionRegistry>();
@@ -109,7 +109,7 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task Endpoint_AuthorizedOpaqueSubscriptionConfirmsAndReceivesNotification()
     {
-        using var server = CreateServer();
+        await using var server = await CreateServerAsync();
         using var socket = await ConnectAsync(server, "user-1");
         await socket.SendAsync(
             """{"type":"subscribe","requestId":"r1","subscriptions":["tenant:abc:group:operators"]}"""u8.ToArray(),
@@ -131,8 +131,8 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task MultiServer_SameUserConnectedToBothHosts_EachConnectionReceivesOneCopy()
     {
-        using var firstServer = CreateServer();
-        using var secondServer = CreateServer();
+        await using var firstServer = await CreateServerAsync();
+        await using var secondServer = await CreateServerAsync();
         using var firstSocket = await ConnectAsync(firstServer, "user-1");
         using var secondSocket = await ConnectAsync(secondServer, "user-1");
 
@@ -151,8 +151,8 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task MultiServer_UsersSplitAcrossHosts_OnlyIntendedUserReceives()
     {
-        using var firstServer = CreateServer();
-        using var secondServer = CreateServer();
+        await using var firstServer = await CreateServerAsync();
+        await using var secondServer = await CreateServerAsync();
         using var firstSocket = await ConnectAsync(firstServer, "user-1");
         using var secondSocket = await ConnectAsync(secondServer, "user-2");
 
@@ -177,8 +177,8 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task MultiServer_SameSubscriptionOnBothHosts_EachConnectionReceives()
     {
-        using var firstServer = CreateServer();
-        using var secondServer = CreateServer();
+        await using var firstServer = await CreateServerAsync();
+        await using var secondServer = await CreateServerAsync();
         using var firstSocket = await ConnectAsync(firstServer, "user-1");
         using var secondSocket = await ConnectAsync(secondServer, "user-2");
         const string subscription = "tenant:abc:channel:alerts";
@@ -198,8 +198,8 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task MultiServer_UserAndSubscriptionMatch_OnePhysicalConnectionGetsOneCopy()
     {
-        using var firstServer = CreateServer();
-        using var secondServer = CreateServer();
+        await using var firstServer = await CreateServerAsync();
+        await using var secondServer = await CreateServerAsync();
         using var firstSocket = await ConnectAsync(firstServer, "user-1");
         using var secondSocket = await ConnectAsync(secondServer, "user-1");
         const string subscription = "tenant:abc:role:operator";
@@ -224,8 +224,8 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task MultiServer_HostWithNoLocalMatch_DoesNotSend()
     {
-        using var firstServer = CreateServer();
-        using var secondServer = CreateServer();
+        await using var firstServer = await CreateServerAsync();
+        await using var secondServer = await CreateServerAsync();
         using var firstSocket = await ConnectAsync(firstServer, "target-user");
         using var secondSocket = await ConnectAsync(secondServer, "other-user");
 
@@ -242,8 +242,8 @@ public sealed class WebSocketEndpointTests
     [Fact]
     public async Task MultiServer_ConnectionLeavesOneHost_OtherHostContinuesDelivery()
     {
-        using var firstServer = CreateServer();
-        using var secondServer = CreateServer();
+        await using var firstServer = await CreateServerAsync();
+        await using var secondServer = await CreateServerAsync();
         using var firstSocket = await ConnectAsync(firstServer, "user-1");
         using var secondSocket = await ConnectAsync(secondServer, "user-1");
         await firstSocket.CloseAsync(
@@ -265,41 +265,38 @@ public sealed class WebSocketEndpointTests
             CancellationToken.None);
     }
 
-    private static TestServer CreateServer(
+    private static async Task<WebApplication> CreateServerAsync(
         string endpointPath = "/ws/notifications",
         bool resolveIdentity = true)
     {
-        var builder = new WebHostBuilder()
-            .ConfigureServices(services =>
-            {
-                services.AddRouting();
-                services.AddAuthentication("Test")
-                    .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>("Test", _ => { });
-                services.AddAuthorization();
-                services.AddSingleton<IWebSocketUserResolver>(
-                    new ClaimUserResolver(resolveIdentity));
-                services.AddSingleton<ISubscriptionAuthorizer, AllowAllAuthorizer>();
-                services.AddWebSocketNotifications(options =>
-                {
-                    options.EndpointPath = endpointPath;
-                    options.HeartbeatEnabled = false;
-                });
-            })
-            .Configure(app =>
-            {
-                app.UseRouting();
-                app.UseAuthentication();
-                app.UseAuthorization();
-                app.UseWebSockets();
-                app.UseEndpoints(endpoints => endpoints.MapWebSocketNotifications());
-            });
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddRouting();
+        builder.Services.AddAuthentication("Test")
+            .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>("Test", _ => { });
+        builder.Services.AddAuthorization();
+        builder.Services.AddSingleton<IWebSocketUserResolver>(
+            new ClaimUserResolver(resolveIdentity));
+        builder.Services.AddSingleton<ISubscriptionAuthorizer, AllowAllAuthorizer>();
+        builder.Services.AddWebSocketNotifications(options =>
+        {
+            options.EndpointPath = endpointPath;
+            options.HeartbeatEnabled = false;
+        });
 
-        return new TestServer(builder);
+        var app = builder.Build();
+        app.UseRouting();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.UseWebSockets();
+        app.MapWebSocketNotifications();
+        await app.StartAsync();
+        return app;
     }
 
-    private static async Task<WebSocket> ConnectAsync(TestServer server, string userId)
+    private static async Task<WebSocket> ConnectAsync(WebApplication server, string userId)
     {
-        var client = server.CreateWebSocketClient();
+        var client = server.GetTestServer().CreateWebSocketClient();
         client.ConfigureRequest = request => request.Headers["X-Test-User"] = userId;
         return await client.ConnectAsync(
             new Uri("ws://localhost/ws/notifications"),
@@ -366,7 +363,7 @@ public sealed class WebSocketEndpointTests
 
     private static Task PublishToAllAsync(
         NotificationEnvelope notification,
-        params TestServer[] servers) =>
+        params WebApplication[] servers) =>
         Task.WhenAll(
             servers.Select(server =>
                 server.Services

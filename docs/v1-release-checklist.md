@@ -110,13 +110,14 @@ Done when one client cannot grow connection/subscription memory without a config
 
 ### 5. Finalize runtime support
 
-The RC currently targets `net8.0`. [.NET 8 reaches end of support on November 10, 2026](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core).
+V1 targets `net10.0` only. .NET 10 is the active LTS line, while [.NET 8 reaches end of support on November 10, 2026](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core). Supporting only .NET 10 keeps the first stable release on one long-lived runtime and avoids carrying a second matrix that expires shortly after release.
 
-- [ ] Choose and record the V1 support matrix. The recommended choices are `net10.0`, or `net8.0;net10.0` if .NET 8 consumers must remain supported during its remaining lifecycle.
-- [ ] Build and run the full library test suite for every supported target framework.
-- [ ] Run sample and WebSocket integration tests on .NET 10.
-- [ ] Review relevant .NET/ASP.NET Core compatibility changes before changing target frameworks.
-- [ ] Update `global.json`, README requirements, package metadata, samples, release notes, and CI consistently.
+- [x] Choose and record the V1 support matrix: `net10.0` only.
+- [x] Build and run the full library test suite for every supported target framework.
+- [x] Run sample and WebSocket integration tests on .NET 10.
+- [x] Review relevant .NET/ASP.NET Core compatibility changes before changing target frameworks.
+- [x] Verify `global.json` and update README requirements, package metadata, samples, release notes, and compatibility documentation consistently.
+- [ ] Create the currently absent CI workflow with the same .NET 10 matrix in Agent 16.
 
 Done when the package's target frameworks, documented support policy, and tested runtimes agree.
 

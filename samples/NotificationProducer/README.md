@@ -1,6 +1,6 @@
 # Notification Producer API Sample
 
-This .NET 8 minimal Web API publishes neutral notification JSON through KafkaHighThroughput. It never calls the WebSocket library directly.
+This .NET 10 minimal Web API publishes neutral notification JSON through KafkaHighThroughput. It never calls the WebSocket library directly.
 
 ## Run
 

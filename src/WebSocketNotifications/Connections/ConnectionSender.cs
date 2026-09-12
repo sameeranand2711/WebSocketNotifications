@@ -19,8 +19,8 @@ internal sealed class ConnectionSender(WebSocket socket, ConnectionBuffer buffer
         {
             await foreach (var message in buffer.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
-                // WebSocket.SendAsync accepts an ArraySegment on .NET 8. Avoid copying the
-                // common array-backed payload while still supporting arbitrary memory owners.
+                // Avoid copying the common array-backed payload while still supporting
+                // arbitrary memory owners accepted by the WebSocket API.
                 if (!MemoryMarshal.TryGetArray(message, out ArraySegment<byte> segment))
                 {
                     segment = new ArraySegment<byte>(message.ToArray());

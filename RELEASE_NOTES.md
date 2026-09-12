@@ -1,4 +1,12 @@
-# WebSocket Notifications 1.0.0-rc.1
+# WebSocket Notifications V1 release notes
+
+## RC.2 candidate compatibility
+
+The developing RC.2 candidate targets .NET 10 only. The core package, .NET samples, and automated .NET tests use `net10.0`; development and deployment environments should install the current .NET 10 servicing update. This replaces RC.1's .NET 8 target for stable V1.
+
+The RC.2 candidate is not yet the approved stable release. These compatibility notes record the selected runtime matrix; final test evidence and release authorization are added only after the remaining release stages pass and the repository owner completes personal testing.
+
+## Historical 1.0.0-rc.1 notes
 
 > These notes describe the historical RC.1 artifact. After RC.1, stable V1 selected source-level multi-server fan-out. RC.1 still uses a fixed Kafka consumer group and is not scale-out ready; implementation and two-host proof are required for RC.2.
 
