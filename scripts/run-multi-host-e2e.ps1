@@ -19,6 +19,28 @@ $processes = [System.Collections.Generic.List[System.Diagnostics.Process]]::new(
 $kafkaStarted = $false
 $passed = $false
 
+function Start-BackgroundProcess {
+    param(
+        [string]$FilePath,
+        [string[]]$ArgumentList,
+        [string]$Output,
+        [string]$ErrorOutput
+    )
+
+    $startOptions = @{
+        FilePath = $FilePath
+        PassThru = $true
+        ArgumentList = $ArgumentList
+        RedirectStandardOutput = $Output
+        RedirectStandardError = $ErrorOutput
+    }
+    if ($PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows) {
+        $startOptions.WindowStyle = 'Hidden'
+    }
+
+    return Start-Process @startOptions
+}
+
 function Start-DotNetApplication {
     param(
         [string]$Name,
@@ -37,10 +59,11 @@ function Start-DotNetApplication {
         '--',
         '--urls', $Url
     ) + $ApplicationArguments
-    $process = Start-Process -FilePath 'dotnet' -WindowStyle Hidden -PassThru `
+    $process = Start-BackgroundProcess `
+        -FilePath 'dotnet' `
         -ArgumentList $arguments `
-        -RedirectStandardOutput $output `
-        -RedirectStandardError $errorOutput
+        -Output $output `
+        -ErrorOutput $errorOutput
     $processes.Add($process)
     return $process
 }
@@ -114,10 +137,11 @@ function Start-Probe {
         $arguments += $ForbiddenMarker
     }
 
-    $process = Start-Process -FilePath $NodeExecutable -WindowStyle Hidden -PassThru `
+    $process = Start-BackgroundProcess `
+        -FilePath $NodeExecutable `
         -ArgumentList $arguments `
-        -RedirectStandardOutput $output `
-        -RedirectStandardError $errorOutput
+        -Output $output `
+        -ErrorOutput $errorOutput
     $processes.Add($process)
 
     for ($attempt = 0; $attempt -lt 60; $attempt++) {
