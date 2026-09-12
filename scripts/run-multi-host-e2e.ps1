@@ -171,7 +171,15 @@ function Stop-Application {
     param([System.Diagnostics.Process]$Process)
 
     if ($Process -and -not $Process.HasExited) {
-        Stop-Process -Id $Process.Id
+        if ($PSVersionTable.PSEdition -eq 'Desktop') {
+            Stop-Process -Id $Process.Id
+        }
+        else {
+            # `dotnet run` can leave the launched application holding the inherited
+            # output pipes after its parent exits. Stop the complete process tree so
+            # redirected streams reach EOF on Linux as well as Windows.
+            $Process.Kill($true)
+        }
         [void]$Process.WaitForExit(10000)
     }
     if ($Process) {
