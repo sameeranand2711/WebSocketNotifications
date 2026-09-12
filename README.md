@@ -46,8 +46,8 @@ The repository selects the .NET 10 SDK through `global.json`, and the library an
 After packing locally:
 
 ```powershell
-dotnet pack src/WebSocketNotifications/WebSocketNotifications.csproj -c Release -o artifacts/packages
-dotnet add <your-project> package WebSocketNotifications --version 1.0.0-rc.1 --source artifacts/packages
+dotnet pack src/WebSocketNotifications/WebSocketNotifications.csproj -c Release -o artifacts/packages/current
+dotnet add <your-project> package WebSocketNotifications --version 1.0.0-rc.1 --source artifacts/packages/current
 ```
 
 During repository development, use a project reference:
@@ -272,14 +272,22 @@ Additional details are in the [host sample](samples/WebSocketNotifications.Host/
 ## Tests and development
 
 ```powershell
-dotnet test WebSocketNotifications.slnx --configuration Release
+dotnet restore WebSocketNotifications.slnx --locked-mode
+dotnet build WebSocketNotifications.slnx --configuration Release --no-restore
+dotnet test WebSocketNotifications.slnx --configuration Release --no-build --no-restore
+dotnet pack src/WebSocketNotifications/WebSocketNotifications.csproj --configuration Release --no-build --no-restore --output artifacts/packages/current
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/inspect-package.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-package-smoke-test.ps1
+
 cd samples/clients/websocket-notifications-nextjs
+npm ci
+npm audit --audit-level=high
 npm test
 npm run typecheck
 npm run build
 ```
 
-The repository contains one core library, one behavior-oriented xUnit project, two .NET samples, and one Next.js client. Read [testing](docs/testing.md) and [development](docs/development.md) before contributing.
+The repository contains one core library, one behavior-oriented xUnit project, two .NET samples, and one Next.js client. GitHub Actions reproduces these gates and runs the live multi-host Kafka scenario separately. Read [testing](docs/testing.md) and [development](docs/development.md) before contributing.
 
 ## Reference documentation
 

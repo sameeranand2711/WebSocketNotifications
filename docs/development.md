@@ -63,10 +63,16 @@ Operational behavior belongs in .NET options, environment variables, or Next.js 
 Before proposing a change:
 
 ```powershell
-dotnet test WebSocketNotifications.slnx --configuration Release
+dotnet restore WebSocketNotifications.slnx --locked-mode
 dotnet build WebSocketNotifications.slnx --configuration Release --no-restore
+dotnet test WebSocketNotifications.slnx --configuration Release --no-build --no-restore
+dotnet pack src/WebSocketNotifications/WebSocketNotifications.csproj --configuration Release --no-build --no-restore --output artifacts/packages/current
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/inspect-package.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-package-smoke-test.ps1
 
 cd samples/clients/websocket-notifications-nextjs
+npm ci
+npm audit --audit-level=high
 npm test
 npm run typecheck
 npm run build

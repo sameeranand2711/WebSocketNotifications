@@ -4,6 +4,8 @@
 
 The developing RC.2 candidate targets .NET 10 only. The core package, .NET samples, and automated .NET tests use `net10.0`; development and deployment environments should install the current .NET 10 servicing update. This replaces RC.1's .NET 8 target for stable V1.
 
+The candidate build uses locked dependency graphs and mandatory vulnerability auditing. Its NuGet output includes MIT, repository, project, and discovery metadata; SDK-provided Source Link; portable symbols in a `.snupkg`; deterministic CI metadata; and package validation. Automated inspection rejects unexpected target frameworks or package dependencies, and a clean temporary ASP.NET Core application restores only the packed package before testing authentication, endpoint mapping, DI registration, and a real WebSocket exchange.
+
 The RC.2 candidate is not yet the approved stable release. These compatibility notes record the selected runtime matrix; final test evidence and release authorization are added only after the remaining release stages pass and the repository owner completes personal testing.
 
 ## Historical 1.0.0-rc.1 notes

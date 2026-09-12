@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WebSocketNotificationsVersion Condition="'$(WebSocketNotificationsVersion)' == ''">0.0.0-local</WebSocketNotificationsVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WebSocketNotifications" Version="$(WebSocketNotificationsVersion)" />
+  </ItemGroup>
+</Project>
