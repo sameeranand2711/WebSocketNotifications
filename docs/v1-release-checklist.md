@@ -151,26 +151,26 @@ Done when the exact package intended for publication has been built once in CI, 
 
 ### 8. Add minimum production diagnostics
 
-- [ ] Add low-overhead metrics for active connections and active subscriptions.
-- [ ] Count notifications received, expired, locally matched, locally unmatched, enqueued, dropped, and rejected as oversized.
-- [ ] Count slow-client drops and disconnections.
-- [ ] Count accepted, denied, invalid, and over-limit subscription commands.
-- [ ] Avoid high-cardinality dimensions such as raw user IDs, connection IDs, and subscription keys.
-- [ ] Expose notification-source readiness in the sample host.
-- [ ] Document metric names and the difference between routing acceptance and WebSocket send completion.
+- [x] Add low-overhead metrics for active connections and active subscriptions.
+- [x] Count notifications received, expired, locally matched, locally unmatched, enqueued, dropped, and rejected as oversized.
+- [x] Count slow-client drops and disconnections.
+- [x] Count accepted, denied, invalid, and over-limit subscription commands.
+- [x] Avoid high-cardinality dimensions such as raw user IDs, connection IDs, and subscription keys.
+- [x] Expose notification-source readiness in the sample host.
+- [x] Document metric names and the difference between routing acceptance and WebSocket send completion.
 
 Done when an operator can distinguish an idle system from a disconnected source, unmatched routing, buffer pressure, and failed WebSocket delivery without enabling debug logs.
 
 ### 9. Perform security and reliability review
 
-- [ ] Re-run the Development Rules review after the multi-server and resource-limit changes.
-- [ ] Confirm that direct user identity still comes only from the authenticated request.
-- [ ] Confirm that subscription authorization is invoked before any state mutation.
-- [ ] Confirm that multi-server changes do not expose server IDs or presence information to clients.
-- [ ] Review compression guidance for sensitive payloads.
-- [ ] Verify malformed, fragmented, binary, oversized, and rapidly repeated control messages cannot create unbounded state.
-- [ ] Verify cancellation, source failure, connection shutdown, and application shutdown observe all owned tasks and release resources.
-- [ ] Review logs to ensure payloads, tokens, and raw user-controlled values are not logged unnecessarily.
+- [x] Re-run the Development Rules review after the multi-server and resource-limit changes.
+- [x] Confirm that direct user identity still comes only from the authenticated request.
+- [x] Confirm that subscription authorization is invoked before any state mutation.
+- [x] Confirm that multi-server changes do not expose server IDs or presence information to clients.
+- [x] Review compression guidance for sensitive payloads.
+- [x] Verify malformed, fragmented, binary, oversized, and rapidly repeated control messages cannot create unbounded state.
+- [x] Verify cancellation, source failure, connection shutdown, and application shutdown observe all owned tasks and release resources.
+- [x] Review logs to ensure payloads, tokens, and raw user-controlled values are not logged unnecessarily.
 
 Done when no Critical or High routing, delivery, authentication, authorization, concurrency, or resource-safety defect remains.
 

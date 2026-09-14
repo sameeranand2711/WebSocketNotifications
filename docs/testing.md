@@ -12,6 +12,7 @@ The xUnit project mirrors the production responsibilities:
 - `Delivery`: route union/deduplication, expiry, serialization, buffer isolation, ordering, and programmatic hub behavior
 - `Protocol`: opaque-key authorization, batch subscribe/unsubscribe, duplicate handling, atomic denial, heartbeat pong, malformed input, and application messages
 - `Hosting`: DI registration, optional source behavior, authentication/identity boundaries, and real TestServer WebSockets
+- `Diagnostics`: active-state gauges and routing, buffering, size, subscription-command, and WebSocket-send counters
 - `Samples`: Kafka adapter handoff/failure propagation and producer API routing, validation, key, and receipt behavior
 
 The Next.js tests cover protocol parsing, reconnect-loop deduplication, resubscription, unsubscribe behavior, intentional disconnect, heartbeat pong, and notification dispatch.
@@ -84,7 +85,7 @@ On success the runner removes its processes, topic, Kafka container, and per-run
 
 ## Current release evidence
 
-- 135 .NET tests passing on .NET 10 with no skips
+- 141 .NET tests passing on .NET 10 with no skips
 - 6 Node tests passing
 - Strict TypeScript check passing
 - Next.js optimized production build passing

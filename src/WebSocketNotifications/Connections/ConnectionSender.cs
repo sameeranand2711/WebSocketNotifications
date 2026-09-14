@@ -1,12 +1,21 @@
 using System.Net.WebSockets;
 using System.Runtime.InteropServices;
+using WebSocketNotifications.Diagnostics;
 
 namespace WebSocketNotifications.Connections;
 
 /// <summary>Serializes all outgoing writes for one socket to preserve accepted FIFO order.</summary>
-internal sealed class ConnectionSender(WebSocket socket, ConnectionBuffer buffer)
+internal sealed class ConnectionSender(
+    WebSocket socket,
+    ConnectionBuffer buffer,
+    WebSocketNotificationMetrics metrics)
 {
     private int started;
+
+    internal ConnectionSender(WebSocket socket, ConnectionBuffer buffer)
+        : this(socket, buffer, WebSocketNotificationMetrics.Disabled)
+    {
+    }
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -32,10 +41,16 @@ internal sealed class ConnectionSender(WebSocket socket, ConnectionBuffer buffer
                         endOfMessage: true,
                         cancellationToken)
                     .ConfigureAwait(false);
+                metrics.MessageSent();
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+        }
+        catch
+        {
+            metrics.MessageSendFailed();
+            throw;
         }
     }
 }

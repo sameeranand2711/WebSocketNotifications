@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using WebSocketNotifications.Abstractions;
 using WebSocketNotifications.Connections;
+using WebSocketNotifications.Diagnostics;
 
 namespace WebSocketNotifications.Protocol;
 
@@ -12,12 +13,22 @@ internal sealed class ProtocolProcessor(
     ConnectionRegistry registry,
     ISubscriptionAuthorizer authorizer,
     IWebSocketInboundMessageHandler? inboundHandler,
-    HeartbeatState? heartbeatState = null)
+    HeartbeatState? heartbeatState,
+    WebSocketNotificationMetrics metrics)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
+
+    internal ProtocolProcessor(
+        ConnectionRegistry registry,
+        ISubscriptionAuthorizer authorizer,
+        IWebSocketInboundMessageHandler? inboundHandler,
+        HeartbeatState? heartbeatState = null)
+        : this(registry, authorizer, inboundHandler, heartbeatState, WebSocketNotificationMetrics.Disabled)
+    {
+    }
 
     public async ValueTask ProcessAsync(
         string connectionId,
@@ -112,6 +123,7 @@ internal sealed class ProtocolProcessor(
     {
         if (!TryGetSubscriptions(root, out var subscriptions))
         {
+            metrics.SubscriptionCommandInvalid();
             EnqueueError(
                 connectionId,
                 outgoing,
@@ -133,6 +145,7 @@ internal sealed class ProtocolProcessor(
             var context = new SubscriptionAuthorizationContext(connectionId, userId, subscription);
             if (!await authorizer.AuthorizeAsync(context, cancellationToken).ConfigureAwait(false))
             {
+                metrics.SubscriptionCommandDenied();
                 EnqueueError(
                     connectionId,
                     outgoing,
@@ -146,6 +159,7 @@ internal sealed class ProtocolProcessor(
         var result = registry.AddSubscriptions(connectionId, subscriptions);
         if (result == SubscriptionAddResult.LimitExceeded)
         {
+            metrics.SubscriptionCommandOverLimit();
             EnqueueError(
                 connectionId,
                 outgoing,
@@ -157,6 +171,7 @@ internal sealed class ProtocolProcessor(
 
         if (result == SubscriptionAddResult.KeyTooLong)
         {
+            metrics.SubscriptionCommandOverLimit();
             EnqueueError(
                 connectionId,
                 outgoing,
@@ -166,6 +181,7 @@ internal sealed class ProtocolProcessor(
             return;
         }
 
+        metrics.SubscriptionCommandAccepted();
         Enqueue(connectionId, outgoing, new ProtocolResponse("subscribed", requestId));
     }
 
@@ -177,6 +193,7 @@ internal sealed class ProtocolProcessor(
     {
         if (!TryGetSubscriptions(root, out var subscriptions))
         {
+            metrics.SubscriptionCommandInvalid();
             EnqueueError(
                 connectionId,
                 outgoing,
@@ -196,6 +213,7 @@ internal sealed class ProtocolProcessor(
             registry.RemoveSubscription(connectionId, subscription);
         }
 
+        metrics.SubscriptionCommandAccepted();
         Enqueue(connectionId, outgoing, new ProtocolResponse("unsubscribed", requestId));
     }
 
@@ -210,6 +228,7 @@ internal sealed class ProtocolProcessor(
             return false;
         }
 
+        metrics.SubscriptionCommandOverLimit();
         EnqueueError(
             connectionId,
             outgoing,

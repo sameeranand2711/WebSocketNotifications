@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using WebSocketNotifications.Abstractions;
 using WebSocketNotifications.Configuration;
 using WebSocketNotifications.Protocol;
+using WebSocketNotifications.Diagnostics;
 
 namespace WebSocketNotifications.Connections;
 
@@ -13,19 +14,20 @@ internal sealed class ConnectionSession(
     IWebSocketInboundMessageHandler? inboundHandler,
     WebSocketNotificationOptions options,
     TimeProvider timeProvider,
-    ILogger<ConnectionSession> logger)
+    ILogger<ConnectionSession> logger,
+    WebSocketNotificationMetrics metrics)
 {
-    private static readonly Action<ILogger, string, string, Exception?> ConnectionOpened =
-        LoggerMessage.Define<string, string>(
+    private static readonly Action<ILogger, string, Exception?> ConnectionOpened =
+        LoggerMessage.Define<string>(
             LogLevel.Debug,
             new EventId(1, nameof(ConnectionOpened)),
-            "WebSocket notification connection {ConnectionId} opened for user {UserId}");
+            "WebSocket notification connection {ConnectionId} opened");
 
-    private static readonly Action<ILogger, string, string, Exception?> ConnectionClosed =
-        LoggerMessage.Define<string, string>(
+    private static readonly Action<ILogger, string, Exception?> ConnectionClosed =
+        LoggerMessage.Define<string>(
             LogLevel.Debug,
             new EventId(2, nameof(ConnectionClosed)),
-            "WebSocket notification connection {ConnectionId} closed for user {UserId}");
+            "WebSocket notification connection {ConnectionId} closed");
 
     public async Task RunAsync(
         string connectionId,
@@ -34,22 +36,23 @@ internal sealed class ConnectionSession(
         CancellationToken cancellationToken)
     {
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var outgoing = new ConnectionBuffer(options.OutgoingBufferCapacity, options.SlowClientPolicy);
+        var outgoing = new ConnectionBuffer(options.OutgoingBufferCapacity, options.SlowClientPolicy, metrics);
         var heartbeatState = new HeartbeatState();
         registry.Add(connectionId, userId, outgoing, stop.Cancel);
-        ConnectionOpened(logger, connectionId, userId, null);
+        ConnectionOpened(logger, connectionId, null);
 
         try
         {
-            var processor = new ProtocolProcessor(registry, authorizer, inboundHandler, heartbeatState);
-            var sender = new ConnectionSender(socket, outgoing);
+            var processor = new ProtocolProcessor(registry, authorizer, inboundHandler, heartbeatState, metrics);
+            var sender = new ConnectionSender(socket, outgoing, metrics);
             var receiver = new ConnectionReceiver(
                 socket,
                 processor,
                 connectionId,
                 userId,
                 outgoing,
-                options.MaxIncomingMessageSize);
+                options.MaxIncomingMessageSize,
+                metrics);
             var tasks = new List<Task>
             {
                 sender.RunAsync(stop.Token),
@@ -82,7 +85,7 @@ internal sealed class ConnectionSession(
             await stop.CancelAsync().ConfigureAwait(false);
             outgoing.Complete();
             registry.Remove(connectionId);
-            ConnectionClosed(logger, connectionId, userId, null);
+            ConnectionClosed(logger, connectionId, null);
         }
     }
 }

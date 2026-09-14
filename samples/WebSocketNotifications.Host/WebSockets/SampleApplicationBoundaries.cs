@@ -28,17 +28,17 @@ internal sealed class SampleSubscriptionAuthorizer : ISubscriptionAuthorizer
 internal sealed class SampleInboundMessageHandler(ILogger<SampleInboundMessageHandler> logger)
     : IWebSocketInboundMessageHandler
 {
-    private static readonly Action<ILogger, string, string, Exception?> MessageReceived =
-        LoggerMessage.Define<string, string>(
+    private static readonly Action<ILogger, string, Exception?> MessageReceived =
+        LoggerMessage.Define<string>(
             LogLevel.Information,
             new EventId(100, nameof(MessageReceived)),
-            "Application message received from user {UserId} on connection {ConnectionId}");
+            "Application message received on connection {ConnectionId}");
 
     public ValueTask HandleAsync(
         InboundWebSocketMessage message,
         CancellationToken cancellationToken)
     {
-        MessageReceived(logger, message.UserId, message.ConnectionId, null);
+        MessageReceived(logger, message.ConnectionId, null);
         return ValueTask.CompletedTask;
     }
 }

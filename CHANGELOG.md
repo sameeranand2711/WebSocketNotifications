@@ -17,6 +17,8 @@ All notable changes to this project are documented here.
 - Added locked and audited dependency restores, warning/skip enforcement, Release builds, .NET and client tests, package retention, and real multi-host Kafka validation in GitHub Actions.
 - Added MIT/package discovery metadata, SDK-provided Source Link, portable symbols, `.snupkg` generation, deterministic CI builds, and package validation.
 - Added package-content inspection and a clean external ASP.NET Core consumer that verifies authenticated WebSocket delivery using only the packed package.
+- Added low-cardinality .NET metrics for active state, routing outcomes, buffer pressure, subscription commands, and WebSocket send completion/failure.
+- Removed raw authenticated user IDs from core and sample operational logs and completed the focused V1 security/reliability review.
 - Added the sequential cumulative V1 release-agent workflow and release checklist.
 
 ## [1.0.0-rc.1] - 2026-09-09

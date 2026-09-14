@@ -2,6 +2,7 @@ using System.Text.Json;
 using WebSocketNotifications.Configuration;
 using WebSocketNotifications.Connections;
 using WebSocketNotifications.Contracts;
+using WebSocketNotifications.Diagnostics;
 
 namespace WebSocketNotifications.Delivery;
 
@@ -9,9 +10,18 @@ namespace WebSocketNotifications.Delivery;
 internal sealed class NotificationDispatcher(
     ConnectionRegistry registry,
     NotificationRouter router,
-    int maxOutgoingMessageSize)
+    int maxOutgoingMessageSize,
+    WebSocketNotificationMetrics metrics)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+
+    internal NotificationDispatcher(
+        ConnectionRegistry registry,
+        NotificationRouter router,
+        int maxOutgoingMessageSize)
+        : this(registry, router, maxOutgoingMessageSize, WebSocketNotificationMetrics.Disabled)
+    {
+    }
 
     public ValueTask DispatchAsync(
         NotificationEnvelope notification,
@@ -20,12 +30,22 @@ internal sealed class NotificationDispatcher(
     {
         ArgumentNullException.ThrowIfNull(notification);
         cancellationToken.ThrowIfCancellationRequested();
+        metrics.NotificationReceived();
+
+        if (notification.IsExpired(utcNow))
+        {
+            metrics.NotificationExpired();
+            return ValueTask.CompletedTask;
+        }
 
         var recipients = router.ResolveRecipients(notification, utcNow);
         if (recipients.Count == 0)
         {
+            metrics.NotificationUnmatched();
             return ValueTask.CompletedTask;
         }
+
+        metrics.NotificationMatched();
 
         // Every recipient receives identical wire JSON, so serialize once before fan-out.
         var frame = new NotificationFrame(
@@ -37,6 +57,7 @@ internal sealed class NotificationDispatcher(
         var message = JsonSerializer.SerializeToUtf8Bytes(frame, SerializerOptions);
         if (message.Length > maxOutgoingMessageSize)
         {
+            metrics.OversizedMessageRejected();
             throw new InvalidOperationException(
                 $"The serialized notification is {message.Length} bytes, exceeding " +
                 $"{nameof(WebSocketNotificationOptions.MaxOutgoingMessageSize)} ({maxOutgoingMessageSize} bytes).");

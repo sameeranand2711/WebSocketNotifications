@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using WebSocketNotifications.Configuration;
+using WebSocketNotifications.Diagnostics;
 
 namespace WebSocketNotifications.Connections;
 
@@ -9,9 +10,19 @@ namespace WebSocketNotifications.Connections;
 internal sealed class ConnectionBuffer
 {
     private readonly Channel<ReadOnlyMemory<byte>> channel;
+    private readonly WebSocketNotificationMetrics metrics;
 
     public ConnectionBuffer(int capacity, SlowClientPolicy policy)
+        : this(capacity, policy, WebSocketNotificationMetrics.Disabled)
     {
+    }
+
+    internal ConnectionBuffer(
+        int capacity,
+        SlowClientPolicy policy,
+        WebSocketNotificationMetrics metrics)
+    {
+        ArgumentNullException.ThrowIfNull(metrics);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
         if (!Enum.IsDefined(policy))
         {
@@ -19,18 +30,23 @@ internal sealed class ConnectionBuffer
         }
 
         Policy = policy;
+        this.metrics = metrics;
         // Disconnect and DropCurrent need TryWrite to report a full queue, so they use
         // Wait mode without ever performing a waiting write. DropOldest is delegated to
         // the channel because replacement must be atomic with concurrent publishers.
-        channel = Channel.CreateBounded<ReadOnlyMemory<byte>>(
-            new BoundedChannelOptions(capacity)
-            {
-                SingleReader = true,
-                SingleWriter = false,
-                FullMode = policy == SlowClientPolicy.DropOldest
-                    ? BoundedChannelFullMode.DropOldest
-                    : BoundedChannelFullMode.Wait,
-            });
+        var options = new BoundedChannelOptions(capacity)
+        {
+            SingleReader = true,
+            SingleWriter = false,
+            FullMode = policy == SlowClientPolicy.DropOldest
+                ? BoundedChannelFullMode.DropOldest
+                : BoundedChannelFullMode.Wait,
+        };
+        channel = policy == SlowClientPolicy.DropOldest
+            ? Channel.CreateBounded<ReadOnlyMemory<byte>>(
+                options,
+                _ => metrics.SlowClientMessageDropped())
+            : Channel.CreateBounded<ReadOnlyMemory<byte>>(options);
     }
 
     public SlowClientPolicy Policy { get; }
@@ -39,12 +55,18 @@ internal sealed class ConnectionBuffer
     {
         if (channel.Writer.TryWrite(message))
         {
+            metrics.MessageEnqueued();
             return BufferWriteResult.Enqueued;
         }
 
-        return Policy == SlowClientPolicy.Disconnect
-            ? BufferWriteResult.Disconnect
-            : BufferWriteResult.Dropped;
+        if (Policy == SlowClientPolicy.Disconnect)
+        {
+            metrics.SlowClientDisconnected();
+            return BufferWriteResult.Disconnect;
+        }
+
+        metrics.SlowClientMessageDropped();
+        return BufferWriteResult.Dropped;
     }
 
     public ValueTask<ReadOnlyMemory<byte>> ReadAsync(CancellationToken cancellationToken = default) =>

@@ -14,12 +14,16 @@ WebSocket Notifications is a provider-neutral .NET library for routing JSON noti
 - Bounded per-connection buffers with disconnect, drop-oldest, and drop-current policies
 - One send loop and one receive loop per connection
 - Application-level heartbeat, optional WebSocket compression, and message-size limits
+- Low-cardinality .NET metrics for routing, buffering, subscriptions, and WebSocket sends
 - JSON application payloads and application-specific inbound messages
 - UTC notification expiry and per-connection ordering
 - KafkaHighThroughput host and multi-endpoint producer Web API samples
 - Reconnecting Next.js client with automatic resubscription
 
 V1 intentionally does not provide distributed presence or targeted server resolution, replay, durable offline delivery, built-in acknowledgements, WebSocket retries, exactly-once delivery, binary messages, tenant scopes, subscription TTLs, or multi-region routing. See [V1 limitations](docs/limitations.md).
+
+Operational metric names and their delivery-boundary semantics are documented in [Metrics and operational signals](docs/metrics.md).
+The focused V1 findings are recorded in the [Security and reliability review](docs/security-reliability-review.md).
 
 ## Architecture
 
