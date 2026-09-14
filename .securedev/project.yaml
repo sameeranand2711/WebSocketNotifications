@@ -1,0 +1,29 @@
+schema_version: 1
+project:
+  name: WebSocketNotifications
+  type: dotnet
+  maturity: PRERELEASE
+  default_branch: main
+  validation_profile: STANDARD
+  trust_mode: TRUSTED_LOCAL
+architecture:
+  contract_path: docs/architecture.md
+risk:
+  security: MEDIUM
+  privacy: LOW
+  regulatory: LOW
+  financial_correctness: LOW
+  persistence_data_loss: LOW
+  concurrency: HIGH
+  performance: HIGH
+  availability: MEDIUM
+  distributed_failure: MEDIUM
+  compatibility: HIGH
+  operational: MEDIUM
+samples:
+  required: true
+  paths:
+    - samples/WebSocketNotifications.Host
+    - samples/NotificationProducer
+    - samples/clients/websocket-notifications-nextjs
+components: []
