@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -9,6 +10,7 @@ using WebSocketNotifications.Configuration;
 using WebSocketNotifications.Connections;
 using WebSocketNotifications.Delivery;
 using WebSocketNotifications.Protocol;
+using WebSocketNotifications.Diagnostics;
 
 namespace WebSocketNotifications.Hosting;
 
@@ -48,6 +50,9 @@ public static class WebSocketNotificationServiceCollectionExtensions
     private static void AddCoreServices(IServiceCollection services)
     {
         services.AddOptions();
+        services.AddMetrics();
+        services.TryAddSingleton(serviceProvider =>
+            new WebSocketNotificationMetrics(serviceProvider.GetRequiredService<IMeterFactory>()));
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IValidateOptions<WebSocketNotificationOptions>,
@@ -56,6 +61,7 @@ public static class WebSocketNotificationServiceCollectionExtensions
         {
             var options = serviceProvider.GetRequiredService<IOptions<WebSocketNotificationOptions>>().Value;
             return new ConnectionRegistry(
+                serviceProvider.GetRequiredService<WebSocketNotificationMetrics>(),
                 options.MaxSubscriptionsPerConnection,
                 options.MaxSubscriptionKeyLength);
         });
@@ -66,7 +72,8 @@ public static class WebSocketNotificationServiceCollectionExtensions
             return new NotificationDispatcher(
                 serviceProvider.GetRequiredService<ConnectionRegistry>(),
                 serviceProvider.GetRequiredService<NotificationRouter>(),
-                options.MaxOutgoingMessageSize);
+                options.MaxOutgoingMessageSize,
+                serviceProvider.GetRequiredService<WebSocketNotificationMetrics>());
         });
         services.TryAddSingleton(serviceProvider =>
             new WebSocketNotificationHub(
@@ -88,7 +95,8 @@ public static class WebSocketNotificationServiceCollectionExtensions
                 serviceProvider.GetService<IWebSocketInboundMessageHandler>(),
                 serviceProvider.GetRequiredService<IOptions<WebSocketNotificationOptions>>().Value,
                 serviceProvider.GetRequiredService<TimeProvider>(),
-                serviceProvider.GetRequiredService<ILogger<ConnectionSession>>()));
+                serviceProvider.GetRequiredService<ILogger<ConnectionSession>>(),
+                serviceProvider.GetRequiredService<WebSocketNotificationMetrics>()));
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, NotificationMessageSourceWorker>());
     }

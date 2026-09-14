@@ -1,5 +1,6 @@
 using WebSocketNotifications.Contracts;
 using WebSocketNotifications.Configuration;
+using WebSocketNotifications.Diagnostics;
 
 namespace WebSocketNotifications.Connections;
 
@@ -16,6 +17,7 @@ internal sealed class ConnectionRegistry
     private readonly Dictionary<string, HashSet<string>> subscriptionsByConnection =
         new(StringComparer.Ordinal);
     private readonly Dictionary<string, HashSet<string>> connectionsBySubscription = new(StringComparer.Ordinal);
+    private readonly WebSocketNotificationMetrics metrics;
     private readonly int maxSubscriptionsPerConnection;
     private readonly int maxSubscriptionKeyLength;
 
@@ -24,9 +26,19 @@ internal sealed class ConnectionRegistry
     public ConnectionRegistry(
         int maxSubscriptionsPerConnection = WebSocketNotificationOptions.DefaultMaxSubscriptionsPerConnection,
         int maxSubscriptionKeyLength = WebSocketNotificationOptions.DefaultMaxSubscriptionKeyLength)
+        : this(WebSocketNotificationMetrics.Disabled, maxSubscriptionsPerConnection, maxSubscriptionKeyLength)
     {
+    }
+
+    internal ConnectionRegistry(
+        WebSocketNotificationMetrics metrics,
+        int maxSubscriptionsPerConnection,
+        int maxSubscriptionKeyLength)
+    {
+        ArgumentNullException.ThrowIfNull(metrics);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxSubscriptionsPerConnection, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxSubscriptionKeyLength, 1);
+        this.metrics = metrics;
         this.maxSubscriptionsPerConnection = maxSubscriptionsPerConnection;
         this.maxSubscriptionKeyLength = maxSubscriptionKeyLength;
     }
@@ -72,6 +84,7 @@ internal sealed class ConnectionRegistry
             }
 
             userConnections.Add(connectionId);
+            metrics.ConnectionOpened();
         }
     }
 
@@ -79,6 +92,7 @@ internal sealed class ConnectionRegistry
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionId);
 
+        int removedSubscriptionCount;
         lock (gate)
         {
             if (!connections.Remove(connectionId, out var connection))
@@ -93,15 +107,18 @@ internal sealed class ConnectionRegistry
                 connectionsByUser.Remove(connection.UserId);
             }
 
-            foreach (var subscription in subscriptionsByConnection[connectionId])
+            var subscriptions = subscriptionsByConnection[connectionId];
+            removedSubscriptionCount = subscriptions.Count;
+            foreach (var subscription in subscriptions)
             {
                 RemoveFromSubscriptionIndex(connectionId, subscription);
             }
 
             subscriptionsByConnection.Remove(connectionId);
-
-            return true;
+            metrics.ConnectionClosed();
+            metrics.SubscriptionsRemoved(removedSubscriptionCount);
         }
+        return true;
     }
 
     public bool Disconnect(string connectionId)
@@ -175,6 +192,7 @@ internal sealed class ConnectionRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionId);
         ArgumentNullException.ThrowIfNull(subscriptions);
 
+        var addedCount = 0;
         lock (gate)
         {
             var current = GetSubscriptionsCore(connectionId);
@@ -216,8 +234,10 @@ internal sealed class ConnectionRegistry
                 subscribedConnections.Add(connectionId);
             }
 
-            return SubscriptionAddResult.Added;
+            addedCount = additions.Count;
+            metrics.SubscriptionsAdded(addedCount);
         }
+        return SubscriptionAddResult.Added;
     }
 
     public bool RemoveSubscription(string connectionId, string subscription)
@@ -233,8 +253,9 @@ internal sealed class ConnectionRegistry
             }
 
             RemoveFromSubscriptionIndex(connectionId, subscription);
-            return true;
+            metrics.SubscriptionsRemoved(1);
         }
+        return true;
     }
 
     public IReadOnlyList<string> GetSubscriptions(string connectionId)

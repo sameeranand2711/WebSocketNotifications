@@ -96,4 +96,6 @@ The effective group is `{application}.{environment}.{instance-id}`. The environm
 
 The sample exposes liveness at `/` and Kafka source readiness at `/health/ready`. Readiness returns HTTP 200 only after the consumer is running and has a partition assignment; degraded and unhealthy states return HTTP 503.
 
+The core library also emits the `WebSocketNotifications` meter without requiring an exporter. See [Metrics and operational signals](metrics.md) for exact instrument names and for the distinction between local routing, queue acceptance, and WebSocket send completion.
+
 The remaining `KafkaConsumerWorkers` settings and the producer's `NotificationProducer` and `KafkaProducerClients` settings are sample/provider configuration, not core library options. Broker credentials should be supplied by environment variables or secret providers and must not be committed.

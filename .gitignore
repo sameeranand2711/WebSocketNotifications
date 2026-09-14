@@ -4,3 +4,6 @@
 **/.next/
 .e2e/
 artifacts/packages/
+
+Agents
+docs

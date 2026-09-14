@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Net.WebSockets;
 using WebSocketNotifications.Protocol;
+using WebSocketNotifications.Diagnostics;
 
 namespace WebSocketNotifications.Connections;
 
@@ -11,10 +12,29 @@ internal sealed class ConnectionReceiver(
     string connectionId,
     string userId,
     ConnectionBuffer outgoing,
-    int maxIncomingMessageSize)
+    int maxIncomingMessageSize,
+    WebSocketNotificationMetrics metrics)
 {
     private const int ReceiveBufferSize = 4 * 1024;
     private int started;
+
+    internal ConnectionReceiver(
+        WebSocket socket,
+        ProtocolProcessor processor,
+        string connectionId,
+        string userId,
+        ConnectionBuffer outgoing,
+        int maxIncomingMessageSize)
+        : this(
+            socket,
+            processor,
+            connectionId,
+            userId,
+            outgoing,
+            maxIncomingMessageSize,
+            WebSocketNotificationMetrics.Disabled)
+    {
+    }
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -57,6 +77,7 @@ internal sealed class ConnectionReceiver(
 
                     if (result.Count > maxIncomingMessageSize - message.WrittenCount)
                     {
+                        metrics.OversizedMessageRejected();
                         await socket.CloseOutputAsync(
                                 WebSocketCloseStatus.MessageTooBig,
                                 $"The message exceeded {maxIncomingMessageSize} bytes.",

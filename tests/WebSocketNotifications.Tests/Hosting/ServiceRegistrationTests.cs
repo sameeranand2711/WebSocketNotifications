@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
+using WebSocketNotifications.Diagnostics;
 using Xunit;
 
 namespace WebSocketNotifications.Tests.Hosting;
@@ -27,6 +28,7 @@ public sealed class ServiceRegistrationTests
         Assert.False(options.HeartbeatEnabled);
         Assert.Equal(7, options.OutgoingBufferCapacity);
         Assert.NotNull(provider.GetService<ConnectionRegistry>());
+        Assert.NotNull(provider.GetService<WebSocketNotificationMetrics>());
     }
 
     [Fact]
