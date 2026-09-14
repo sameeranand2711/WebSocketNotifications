@@ -1,0 +1,23 @@
+rules:
+  - id: sdg-dotnet-dangerous-cert-validation
+    languages: [csharp]
+    severity: ERROR
+    message: TLS certificate validation is disabled.
+    patterns:
+      - pattern-either:
+          - pattern: $H.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+          - pattern: $H.ServerCertificateCustomValidationCallback = ($REQ, $CERT, $CHAIN, $ERR) => true
+    metadata:
+      securedevgate_rule_id: SEC-TLS-001
+
+  - id: sdg-dotnet-process-shell
+    languages: [csharp]
+    severity: WARNING
+    message: Direct shell execution requires review for argument injection.
+    pattern-either:
+      - pattern: Process.Start("cmd.exe", ...)
+      - pattern: Process.Start("powershell.exe", ...)
+      - pattern: Process.Start("/bin/sh", ...)
+      - pattern: Process.Start("/bin/bash", ...)
+    metadata:
+      securedevgate_rule_id: SEC-SHELL-001

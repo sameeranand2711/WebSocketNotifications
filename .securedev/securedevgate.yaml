@@ -1,0 +1,14 @@
+schema_version: 1
+default_profile: STANDARD
+trust_mode: TRUSTED_LOCAL
+output_directory: .securedevgate
+blocking_severity: HIGH
+max_parallel_processes: 2
+process_timeout_seconds: 120
+max_scanned_file_bytes: 1048576
+semgrep:
+  enabled: true
+  required: false
+  executable: semgrep
+  config_path: .securedev/semgrep/securedevgate.yml
+rules: {}
