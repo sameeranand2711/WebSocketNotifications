@@ -8,6 +8,8 @@ The candidate build uses locked dependency graphs and mandatory vulnerability au
 
 The candidate emits a tag-free `WebSocketNotifications` meter covering active connections/subscriptions, notification routing outcomes, queue pressure, subscription command outcomes, and WebSocket send completion/failure. Kafka assignment-aware readiness remains available at `/health/ready` in the sample host. The focused security/reliability review found no Critical or High defect and removed raw authenticated user IDs from operational logs.
 
+The recorded Stage 18 envelope covers up to four independently routed servers, 100 connections and 800 subscription associations per server, 50 shared-route notifications per second, 4 KiB payloads, slow clients, connection churn/resubscription, source interruption, server restart, and graceful shutdown. The ten-minute four-server soak completed more than 11 million sends with zero send failures and no queued, connection, or subscription state remaining after shutdown. These workstation results validate the declared V1 envelope but are not a universal throughput guarantee; see `docs/performance-soak.md`.
+
 The RC.2 candidate is not yet the approved stable release. These compatibility notes record the selected runtime matrix; final test evidence and release authorization are added only after the remaining release stages pass and the repository owner completes personal testing.
 
 ## Historical 1.0.0-rc.1 notes

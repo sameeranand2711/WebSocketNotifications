@@ -19,6 +19,8 @@ All notable changes to this project are documented here.
 - Added package-content inspection and a clean external ASP.NET Core consumer that verifies authenticated WebSocket delivery using only the packed package.
 - Added low-cardinality .NET metrics for active state, routing outcomes, buffer pressure, subscription commands, and WebSocket send completion/failure.
 - Removed raw authenticated user IDs from core and sample operational logs and completed the focused V1 security/reliability review.
+- Added an outgoing queue-depth gauge plus a repeatable fan-out load harness covering scale, slow clients, churn/resubscription, source interruption, restart, and graceful shutdown.
+- Recorded a passing four-server V1 operating envelope and sustained soak without making a universal throughput claim.
 - Added the sequential cumulative V1 release-agent workflow and release checklist.
 
 ## [1.0.0-rc.1] - 2026-09-09

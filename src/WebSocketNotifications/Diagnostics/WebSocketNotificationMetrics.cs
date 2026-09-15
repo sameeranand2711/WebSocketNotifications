@@ -9,6 +9,7 @@ internal sealed class WebSocketNotificationMetrics
 
     private long activeConnectionCount;
     private long activeSubscriptionCount;
+    private long queuedMessageCount;
     private readonly bool enabled;
     private readonly Counter<long>? notificationsReceived;
     private readonly Counter<long>? notificationsExpired;
@@ -48,6 +49,11 @@ internal sealed class WebSocketNotificationMetrics
             () => Interlocked.Read(ref activeSubscriptionCount),
             unit: "{subscription}",
             description: "Current connection-to-subscription associations.");
+        _ = meter.CreateObservableGauge(
+            "websocket_notifications.messages.queued",
+            () => Interlocked.Read(ref queuedMessageCount),
+            unit: "{message}",
+            description: "Current messages waiting in WebSocket connection buffers.");
         notificationsReceived = meter.CreateCounter<long>("websocket_notifications.notifications.received");
         notificationsExpired = meter.CreateCounter<long>("websocket_notifications.notifications.expired");
         notificationsMatched = meter.CreateCounter<long>("websocket_notifications.notifications.matched");
@@ -112,7 +118,29 @@ internal sealed class WebSocketNotificationMetrics
 
     internal void NotificationUnmatched() => notificationsUnmatched?.Add(1);
 
-    internal void MessageEnqueued() => messagesEnqueued?.Add(1);
+    internal void MessageEnqueued()
+    {
+        if (enabled)
+        {
+            Interlocked.Increment(ref queuedMessageCount);
+        }
+
+        messagesEnqueued?.Add(1);
+    }
+
+    internal void MessageDequeued()
+    {
+        if (enabled)
+        {
+            Interlocked.Decrement(ref queuedMessageCount);
+        }
+    }
+
+    internal void QueuedMessageDropped()
+    {
+        MessageDequeued();
+        SlowClientMessageDropped();
+    }
 
     internal void SlowClientMessageDropped()
     {

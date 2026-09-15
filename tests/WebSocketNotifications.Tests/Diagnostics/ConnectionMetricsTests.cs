@@ -91,6 +91,7 @@ public sealed class ConnectionMetricsTests
         Assert.Equal(2, measurements.Sum("websocket_notifications.messages.enqueued"));
         Assert.Equal(1, measurements.Sum("websocket_notifications.messages.sent"));
         Assert.Equal(1, measurements.Sum("websocket_notifications.messages.send_failures"));
+        Assert.Equal(0, measurements.Sum("websocket_notifications.messages.queued"));
         Assert.All(measurements.RecordedTags, tags => Assert.Empty(tags));
     }
 
@@ -108,10 +109,17 @@ public sealed class ConnectionMetricsTests
         Assert.Equal(BufferWriteResult.Enqueued, disconnect.TryEnqueue(new byte[] { 3 }));
         Assert.Equal(BufferWriteResult.Disconnect, disconnect.TryEnqueue(new byte[] { 4 }));
 
+        Assert.Equal(2, measurements.Sum("websocket_notifications.messages.queued"));
         Assert.Equal(3, measurements.Sum("websocket_notifications.messages.enqueued"));
         Assert.Equal(2, measurements.Sum("websocket_notifications.messages.dropped"));
         Assert.Equal(1, measurements.Sum("websocket_notifications.clients.slow_drops"));
         Assert.Equal(1, measurements.Sum("websocket_notifications.clients.slow_disconnects"));
+
+        Assert.True(dropOldest.TryRead(out _));
+        disconnect.Complete();
+        disconnect.DiscardPending();
+
+        Assert.Equal(0, measurements.Sum("websocket_notifications.messages.queued"));
         Assert.All(measurements.RecordedTags, tags => Assert.Empty(tags));
     }
 

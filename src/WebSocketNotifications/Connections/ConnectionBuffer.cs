@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using WebSocketNotifications.Configuration;
 using WebSocketNotifications.Diagnostics;
@@ -45,7 +46,7 @@ internal sealed class ConnectionBuffer
         channel = policy == SlowClientPolicy.DropOldest
             ? Channel.CreateBounded<ReadOnlyMemory<byte>>(
                 options,
-                _ => metrics.SlowClientMessageDropped())
+                _ => metrics.QueuedMessageDropped())
             : Channel.CreateBounded<ReadOnlyMemory<byte>>(options);
     }
 
@@ -69,15 +70,42 @@ internal sealed class ConnectionBuffer
         return BufferWriteResult.Dropped;
     }
 
-    public ValueTask<ReadOnlyMemory<byte>> ReadAsync(CancellationToken cancellationToken = default) =>
-        channel.Reader.ReadAsync(cancellationToken);
+    public async ValueTask<ReadOnlyMemory<byte>> ReadAsync(CancellationToken cancellationToken = default)
+    {
+        var message = await channel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+        metrics.MessageDequeued();
+        return message;
+    }
 
-    public bool TryRead(out ReadOnlyMemory<byte> message) => channel.Reader.TryRead(out message);
+    public bool TryRead(out ReadOnlyMemory<byte> message)
+    {
+        if (!channel.Reader.TryRead(out message))
+        {
+            return false;
+        }
 
-    public IAsyncEnumerable<ReadOnlyMemory<byte>> ReadAllAsync(CancellationToken cancellationToken = default) =>
-        channel.Reader.ReadAllAsync(cancellationToken);
+        metrics.MessageDequeued();
+        return true;
+    }
+
+    public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadAllAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var message in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            metrics.MessageDequeued();
+            yield return message;
+        }
+    }
 
     public void Complete() => channel.Writer.TryComplete();
+
+    public void DiscardPending()
+    {
+        while (TryRead(out _))
+        {
+        }
+    }
 }
 
 internal enum BufferWriteResult

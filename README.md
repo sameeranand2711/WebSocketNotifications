@@ -24,6 +24,7 @@ V1 intentionally does not provide distributed presence or targeted server resolu
 
 Operational metric names and their delivery-boundary semantics are documented in [Metrics and operational signals](docs/metrics.md).
 The focused V1 findings are recorded in the [Security and reliability review](docs/security-reliability-review.md).
+The measured fan-out envelope and reproducible load command are recorded in [Performance and soak validation](docs/performance-soak.md).
 
 ## Architecture
 
@@ -280,6 +281,7 @@ dotnet restore WebSocketNotifications.slnx --locked-mode
 dotnet build WebSocketNotifications.slnx --configuration Release --no-restore
 dotnet test WebSocketNotifications.slnx --configuration Release --no-build --no-restore
 dotnet pack src/WebSocketNotifications/WebSocketNotifications.csproj --configuration Release --no-build --no-restore --output artifacts/packages/current
+dotnet run --project benchmarks/WebSocketNotifications.Performance --configuration Release --no-build -- --servers 4 --duration-seconds 60
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/inspect-package.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-package-smoke-test.ps1
 
@@ -302,6 +304,7 @@ The repository contains one core library, one behavior-oriented xUnit project, t
 - [Delivery semantics](docs/delivery-semantics.md)
 - [Ordering](docs/ordering.md)
 - [Testing](docs/testing.md)
+- [Performance and soak validation](docs/performance-soak.md)
 - [Development](docs/development.md)
 - [V1 limitations](docs/limitations.md)
 - [Decision log](docs/decision-log.md)

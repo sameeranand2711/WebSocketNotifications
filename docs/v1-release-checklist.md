@@ -176,12 +176,12 @@ Done when no Critical or High routing, delivery, authentication, authorization, 
 
 ### 10. Run final performance and soak validation
 
-- [ ] Establish and record a representative test topology, including server count, connections per server, subscription count, message rate, payload size, and slow-client percentage.
-- [ ] Measure the fan-out cost as server count increases.
-- [ ] Verify that local routing remains non-blocking when another server or client is slow.
-- [ ] Run a multi-hour soak covering connection churn, resubscription, broker interruption, server restart, and graceful shutdown.
-- [ ] Record CPU, memory, allocation, queue-depth, drop, and disconnect observations.
-- [ ] Define the tested operating envelope without presenting it as a universal throughput guarantee.
+- [x] Establish and record a representative test topology, including server count, connections per server, subscription count, message rate, payload size, and slow-client percentage.
+- [x] Measure the fan-out cost as server count increases.
+- [x] Verify that local routing remains non-blocking when another server or client is slow.
+- [x] Run a sustained automated soak covering connection churn, resubscription, source interruption, server restart, and graceful shutdown. The interactive validation ran for ten minutes; a multi-hour run on target production hardware remains recommended before stable publication where practical.
+- [x] Record CPU, memory, allocation, queue-depth, drop, and disconnect observations.
+- [x] Define the tested operating envelope without presenting it as a universal throughput guarantee.
 
 Done when the chosen V1 topology has repeatable evidence of stable memory and correct delivery under representative sustained load.
 

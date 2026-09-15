@@ -4,3 +4,4 @@
 **/.next/
 .e2e/
 artifacts/packages/
+artifacts/performance/

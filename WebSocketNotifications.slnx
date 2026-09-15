@@ -2,5 +2,6 @@
   <Project Path="src/WebSocketNotifications/WebSocketNotifications.csproj" />
   <Project Path="samples/WebSocketNotifications.Host/WebSocketNotifications.Host.csproj" />
   <Project Path="samples/NotificationProducer/NotificationProducer.csproj" />
+  <Project Path="benchmarks/WebSocketNotifications.Performance/WebSocketNotifications.Performance.csproj" />
   <Project Path="tests/WebSocketNotifications.Tests/WebSocketNotifications.Tests.csproj" />
 </Solution>
