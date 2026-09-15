@@ -481,7 +481,7 @@
         "type": "Project",
         "dependencies": {
           "KafkaHighThroughput": "[1.0.0-preview.1, )",
-          "WebSocketNotifications": "[1.0.0-rc.1, )"
+          "WebSocketNotifications": "[1.0.0-rc.2, )"
         }
       }
     }

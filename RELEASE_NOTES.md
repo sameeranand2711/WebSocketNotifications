@@ -1,8 +1,8 @@
 # WebSocket Notifications V1 release notes
 
-## RC.2 candidate compatibility
+## 1.0.0-rc.2 candidate
 
-The developing RC.2 candidate targets .NET 10 only. The core package, .NET samples, and automated .NET tests use `net10.0`; development and deployment environments should install the current .NET 10 servicing update. This replaces RC.1's .NET 8 target for stable V1.
+The RC.2 candidate targets .NET 10 only. The core package, .NET samples, and automated .NET tests use `net10.0`; development and deployment environments should install the current .NET 10 servicing update. This replaces RC.1's .NET 8 target for stable V1.
 
 The candidate build uses locked dependency graphs and mandatory vulnerability auditing. Its NuGet output includes MIT, repository, project, and discovery metadata; SDK-provided Source Link; portable symbols in a `.snupkg`; deterministic CI metadata; and package validation. Automated inspection rejects unexpected target frameworks or package dependencies, and a clean temporary ASP.NET Core application restores only the packed package before testing authentication, endpoint mapping, DI registration, and a real WebSocket exchange.
 
@@ -10,7 +10,11 @@ The candidate emits a tag-free `WebSocketNotifications` meter covering active co
 
 The recorded Stage 18 envelope covers up to four independently routed servers, 100 connections and 800 subscription associations per server, 50 shared-route notifications per second, 4 KiB payloads, slow clients, connection churn/resubscription, source interruption, server restart, and graceful shutdown. The ten-minute four-server soak completed more than 11 million sends with zero send failures and no queued, connection, or subscription state remaining after shutdown. These workstation results validate the declared V1 envelope but are not a universal throughput guarantee; see `docs/performance-soak.md`.
 
-The RC.2 candidate is not yet the approved stable release. These compatibility notes record the selected runtime matrix; final test evidence and release authorization are added only after the remaining release stages pass and the repository owner completes personal testing.
+The RC.2 release gate passed on 2026-09-15 with a final-release quality score of **97 / 100** and every mandatory gate satisfied. The exact candidate builds with zero warnings/errors; passes 141/141 .NET tests and 6/6 client tests without skips; passes dependency audit, TypeScript, and optimized Next.js build; passes package inspection and clean external package consumption; and passes the real Kafka multi-host E2E.
+
+The score breakdown is: correctness 30/30, automated testing 19/20, simplicity/maintainability 14/15, concurrency/reliability/resource safety 14/15, performance readiness 8/8, security/abuse resistance 5/5, and documentation/developer experience 7/7. The concrete deductions are the lack of an automated real-browser UI E2E, the maintenance surface of the dedicated internal performance harness, and the ten-minute rather than multi-hour target-hardware soak.
+
+The V1 public API and wire protocol are frozen at this RC.2 gate. Until stable publication, only release-blocking fixes should alter them, and any such fix must repeat the affected gates. RC.2 is not the approved stable release: prerelease feedback, repository-owner personal testing, approval for the final PR to `main`, and separate explicit approval for stable publication still remain.
 
 ## Historical 1.0.0-rc.1 notes
 

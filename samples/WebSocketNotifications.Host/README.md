@@ -66,7 +66,7 @@ Do not place broker credentials in committed settings. Use environment variables
 
 The sample replaces the named consumer's `GroupId` at startup with the generated namespaced identity and enforces `AutoOffsetReset=Latest`. The consumer uses `OrderedByPartition`; no global ordering is claimed across Kafka partitions.
 
-Run the real two-host fan-out, continuity, and restart proof from the repository root:
+Run the real shared-group negative control, two-host fan-out, host continuity, Kafka stop/restart recovery, and no-replay restart proof from the repository root:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-multi-host-e2e.ps1
