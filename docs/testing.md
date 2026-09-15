@@ -108,14 +108,19 @@ This is a repeatable routing and resource-pressure harness, not a network-capaci
 
 ## Current release evidence
 
+- Candidate: `WebSocketNotifications` `1.0.0-rc.2`, validated 2026-09-15
 - 141 .NET tests passing on .NET 10 with no skips
 - 6 Node tests passing
+- Locked .NET restore and npm install/audit passing with no reported vulnerabilities
 - Strict TypeScript check passing
 - Next.js optimized production build passing
 - Real Kafka shared-group negative control and independent two-host fan-out passing
 - Real Kafka host-continuity, broker stop/restart recovery, and no-replay restart scenarios passing
 - Release .NET 10 build with zero warnings and errors
+- `WebSocketNotifications.1.0.0-rc.2.nupkg` and `.snupkg` inspection passing
+- Clean external ASP.NET Core application restore and authenticated WebSocket exchange using only the packed RC.2 package passing
 - Repeatable 1/2/4-server fan-out load matrix passing with bounded queues and zero final active resources
 - Sustained four-server slow-client/churn soak passing
+- Final-release quality score: 97/100; every mandatory V1 gate passes
 
 No coverage percentage or universal throughput claim is published for V1. The performance harness records only the tested local routing envelope on its documented machine and does not replace deployment-specific load testing.

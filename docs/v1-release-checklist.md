@@ -187,33 +187,33 @@ Done when the chosen V1 topology has repeatable evidence of stable memory and co
 
 ### 11. Update all documentation after the code is stable
 
-- [ ] Update `README.md` to describe multi-server fan-out and remove the single-server limitation.
-- [ ] Update `docs/architecture.md` with the cross-server flow and local-routing boundary.
-- [ ] Update `docs/message-source.md` with the independent-subscription requirement.
-- [ ] Update `docs/delivery-semantics.md` and `docs/ordering.md` for multi-server processing and the absence of cross-server global ordering.
-- [ ] Update `docs/configuration.md` with instance/group configuration, subscription limits, readiness, and all exact defaults.
-- [ ] Update `docs/protocol.md` with any new limit error while keeping the wire model generic.
-- [ ] Update `docs/testing.md` with final commands and fresh results.
-- [ ] Update `docs/limitations.md`; remove resolved single-server statements and retain genuine limitations.
-- [ ] Update `docs/decision-log.md`, `CHANGELOG.md`, `RELEASE_NOTES.md`, and every sample README.
-- [ ] Search the repository for stale `single server`, fixed consumer-group, old routing-model, preview-version, test-count, and configuration claims.
-- [ ] Compile or execute documented examples where practical and verify every referenced path.
+- [x] Update `README.md` to describe multi-server fan-out and remove the single-server limitation.
+- [x] Update `docs/architecture.md` with the cross-server flow and local-routing boundary.
+- [x] Update `docs/message-source.md` with the independent-subscription requirement.
+- [x] Update `docs/delivery-semantics.md` and `docs/ordering.md` for multi-server processing and the absence of cross-server global ordering.
+- [x] Update `docs/configuration.md` with instance/group configuration, subscription limits, readiness, and all exact defaults.
+- [x] Update `docs/protocol.md` with the limit errors while keeping the wire model generic.
+- [x] Update `docs/testing.md` with final commands and fresh results.
+- [x] Update `docs/limitations.md`; remove resolved single-server statements and retain genuine limitations.
+- [x] Update `docs/decision-log.md`, `CHANGELOG.md`, `RELEASE_NOTES.md`, and every sample README.
+- [x] Search the repository for stale `single server`, fixed consumer-group, old routing-model, preview-version, test-count, and configuration claims. Remaining RC.1 and single-server text is explicitly labeled historical/superseded; `KafkaHighThroughput` remains at its actual preview dependency version.
+- [x] Compile or execute documented examples where practical and verify every referenced local documentation path.
 
 Done when documentation describes only the behavior present in the final release commit.
 
 ### 12. Execute the final release gate
 
-- [ ] Create `1.0.0-rc.2` after the preceding implementation changes rather than publishing stable directly from RC.1.
+- [x] Create `1.0.0-rc.2` after the preceding implementation changes rather than publishing stable directly from RC.1.
 - [ ] Publish RC.2 to prerelease consumers and allow an agreed soak/feedback period.
 - [ ] Resolve all release-blocking RC feedback and repeat affected tests.
-- [ ] Run the complete Release build and confirm zero warnings and errors.
-- [ ] Run all .NET tests with no hidden skips.
-- [ ] Run JavaScript tests, TypeScript checking, and the optimized client build.
-- [ ] Run the real multi-host producer-to-Kafka-to-WebSocket E2E test from a clean environment.
-- [ ] Run the Quality Scoring Agent in final-release mode.
-- [ ] Require at least 85/100 and every mandatory gate to pass; the score alone is not sufficient.
-- [ ] Record the final evidence in `docs/testing.md` and `RELEASE_NOTES.md`.
-- [ ] Freeze the V1 public API and wire protocol after the gate passes.
+- [x] Run the complete Release build and confirm zero warnings and errors.
+- [x] Run all .NET tests with no hidden skips.
+- [x] Run JavaScript tests, TypeScript checking, and the optimized client build.
+- [x] Run the real multi-host producer-to-Kafka-to-WebSocket E2E test from a clean environment.
+- [x] Run the Quality Scoring Agent in final-release mode.
+- [x] Require at least 85/100 and every mandatory gate to pass; the score alone is not sufficient. RC.2 scored 97/100 with all mandatory gates passing.
+- [x] Record the final evidence in `docs/testing.md` and `RELEASE_NOTES.md`.
+- [x] Freeze the V1 public API and wire protocol after the gate passes.
 
 Done when the exact candidate commit and package have passed every mandatory gate and have no unresolved release-blocking issue.
 

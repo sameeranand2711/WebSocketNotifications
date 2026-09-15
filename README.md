@@ -52,7 +52,7 @@ After packing locally:
 
 ```powershell
 dotnet pack src/WebSocketNotifications/WebSocketNotifications.csproj -c Release -o artifacts/packages/current
-dotnet add <your-project> package WebSocketNotifications --version 1.0.0-rc.1 --source artifacts/packages/current
+dotnet add <your-project> package WebSocketNotifications --version 1.0.0-rc.2 --source artifacts/packages/current
 ```
 
 During repository development, use a project reference:

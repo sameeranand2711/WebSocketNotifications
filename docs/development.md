@@ -7,6 +7,7 @@ V1 supports and tests .NET 10 only. The repository selects its SDK through `glob
 ```text
 src/WebSocketNotifications/              provider-neutral library
 tests/WebSocketNotifications.Tests/      behavior and integration tests
+benchmarks/WebSocketNotifications.Performance/  local routing/load harness
 samples/WebSocketNotifications.Host/     Kafka-backed ASP.NET Core host
 samples/NotificationProducer/             Kafka producer Web API
 samples/clients/websocket-notifications-nextjs/  browser client and UI
@@ -66,6 +67,7 @@ Before proposing a change:
 dotnet restore WebSocketNotifications.slnx --locked-mode
 dotnet build WebSocketNotifications.slnx --configuration Release --no-restore
 dotnet test WebSocketNotifications.slnx --configuration Release --no-build --no-restore
+dotnet run --project benchmarks/WebSocketNotifications.Performance --configuration Release --no-build -- --servers 4 --duration-seconds 60
 dotnet pack src/WebSocketNotifications/WebSocketNotifications.csproj --configuration Release --no-build --no-restore --output artifacts/packages/current
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/inspect-package.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-package-smoke-test.ps1
