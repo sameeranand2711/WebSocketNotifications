@@ -13,6 +13,7 @@ V1 emits no metric tags. In particular, user IDs, connection IDs, subscription k
 | `websocket_notifications.notifications.matched` | counter | Non-expired notifications resolving to at least one local connection before serialization and enqueue |
 | `websocket_notifications.notifications.unmatched` | counter | Non-expired notifications resolving to no local connection |
 | `websocket_notifications.messages.enqueued` | counter | Outgoing frames accepted by a connection buffer, including notifications, protocol responses, and heartbeat pings |
+| `websocket_notifications.messages.queued` | observable gauge | Current frames waiting across local connection buffers; frames being sent are no longer queued |
 | `websocket_notifications.messages.dropped` | counter | Outgoing frames discarded by a full connection buffer, including frames displaced by `DropOldest` |
 | `websocket_notifications.messages.rejected_oversized` | counter | Incoming control messages or serialized outgoing notifications rejected by their configured size limit |
 | `websocket_notifications.clients.slow_drops` | counter | Full-buffer events handled by `DropCurrent` or `DropOldest` |

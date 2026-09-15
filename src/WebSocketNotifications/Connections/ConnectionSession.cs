@@ -84,6 +84,7 @@ internal sealed class ConnectionSession(
         {
             await stop.CancelAsync().ConfigureAwait(false);
             outgoing.Complete();
+            outgoing.DiscardPending();
             registry.Remove(connectionId);
             ConnectionClosed(logger, connectionId, null);
         }

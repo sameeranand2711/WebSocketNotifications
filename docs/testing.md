@@ -83,6 +83,29 @@ MULTI-HOST E2E PASSED: shared-group negative control, independent fan-out, host 
 
 On success the runner removes its processes, topic, Kafka container, and per-run log directory. On failure it keeps the ignored per-run logs under `.e2e` for diagnosis. Pass `-LeaveKafkaRunning` to retain the Kafka container for subsequent sample use.
 
+## Performance and soak validation
+
+The dependency-free console harness under `benchmarks/WebSocketNotifications.Performance` exercises the actual registry, router, bounded buffer, dispatcher, metrics, and sender implementations. It simulates independent local servers receiving the same source notification and supports slow clients, churn with resubscription, a source pause, one server restart, and graceful shutdown. It writes a machine-readable JSON result when `--output` is supplied.
+
+```powershell
+dotnet run --project benchmarks/WebSocketNotifications.Performance --configuration Release --no-build -- `
+  --servers 4 `
+  --connections-per-server 100 `
+  --subscriptions-per-connection 8 `
+  --message-rate 50 `
+  --payload-bytes 4096 `
+  --slow-client-percent 5 `
+  --slow-send-delay-ms 250 `
+  --buffer-capacity 32 `
+  --churn-percent 5 `
+  --churn-interval-seconds 10 `
+  --duration-seconds 600 `
+  --source-interruption-seconds 10 `
+  --output artifacts/performance/result.json
+```
+
+This is a repeatable routing and resource-pressure harness, not a network-capacity benchmark. The real Kafka and WebSocket boundary remains covered by `scripts/run-multi-host-e2e.ps1`. See [performance and soak validation](performance-soak.md) for the exact tested topology, results, interpretation, and limits.
+
 ## Current release evidence
 
 - 141 .NET tests passing on .NET 10 with no skips
@@ -90,7 +113,9 @@ On success the runner removes its processes, topic, Kafka container, and per-run
 - Strict TypeScript check passing
 - Next.js optimized production build passing
 - Real Kafka shared-group negative control and independent two-host fan-out passing
-- Real Kafka host-continuity and no-replay restart scenarios passing
+- Real Kafka host-continuity, broker stop/restart recovery, and no-replay restart scenarios passing
 - Release .NET 10 build with zero warnings and errors
+- Repeatable 1/2/4-server fan-out load matrix passing with bounded queues and zero final active resources
+- Sustained four-server slow-client/churn soak passing
 
-No coverage percentage or dedicated load benchmark is published for V1. Tests verify bounded memory behavior and non-blocking buffer overflow directly; sustained load benchmarking is a documented post-V1 improvement rather than an implied result.
+No coverage percentage or universal throughput claim is published for V1. The performance harness records only the tested local routing envelope on its documented machine and does not replace deployment-specific load testing.
